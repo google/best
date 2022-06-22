@@ -1,2 +1,2 @@
-# CCS Stats
-Analysis tools for DeepConsensus CCS.
+# BAM Error Stats
+Analysis of error types in BAM files.
