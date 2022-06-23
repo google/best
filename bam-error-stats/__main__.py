@@ -40,7 +40,8 @@ def concordance(record: pysam.AlignedSegment) -> float:
   return float(stats[7]) / (stats[0] + stats[1] + stats[2])
 
 
-def concordance_qv(concordance: float, read_len: int, has_errors: bool) -> float:
+def concordance_qv(concordance: float, read_len: int,
+                   has_errors: bool) -> float:
   qv_cap = 10.0 * math.log10(read_len + 1.0)
   if has_errors:
     return min(-10.0 * math.log10(1.0 - concordance), qv_cap)
@@ -61,8 +62,11 @@ def get_aln_stats(record: pysam.AlignedSegment) -> AlnStats or None:
   subread_passes = record.get_tag("np") if record.has_tag("np") else 0
   pred_concordance = record.get_tag("rq") if record.has_tag("rq") else 0
   concordance = concordance(record)
-  concordance_qv = concordance_qv(concordance, record.infer_read_length(), errors(record) > 0)
-  return AlnStats(record.query_name, record.query_length(), effective_cov, subread_passes, pred_concordance, record.is_supplementary(), record.mapping_quality(), concordance, concordance_qv)
+  concordance_qv = concordance_qv(concordance, record.infer_read_length(),
+                                  errors(record) > 0)
+  return AlnStats(record.query_name, record.query_length(), effective_cov,
+                  subread_passes, pred_concordance, record.is_supplementary(),
+                  record.mapping_quality(), concordance, concordance_qv)
 
 
 def run(input_path: str, aln_stats_path: str, processes: int, chunk_size: int):
