@@ -8,3 +8,4 @@ description = "Analysis of error types in BAM files."
 clap = { version = "^3.2", features = ["derive"] }
 rayon = "^1.5"
 noodles = { version = "^0.24", features = ["sam", "bam", "fasta", "bed"] }
+fxhash = "^0.2"

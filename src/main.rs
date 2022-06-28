@@ -5,18 +5,17 @@ use rayon;
 use noodles_bam as bam;
 use noodles_fasta as fasta;
 
+use fxhash::FxHashMap;
+
 mod stats;
 use stats::*;
 
 fn run(input_path: String, reference_path: String, aln_stats_path: String) {
-    let ref_index = fasta::index(reference_path);
     let ref_reader = fasta::Reader::new(BufReader::new(File::open(reference_path).unwrap()));
-    let adapter = fasta::repository::adapters::IndexedReader::new(ref_reader, ref_index);
-    let references = fasta::Repository::new(adapter);
+    let reference_seqs: FxHashMap<String, fasta::Record> = ref_reader.records().map(|r| (r.name().to_owned(), r)).collect();
 
     let mut reader = bam::Reader::new(File::open(input_path).unwrap());
-    reader.read_header().unwrap();
-    reader.read_reference_sequences().unwrap();
+    let header = reader.read_header().unwrap().parse().unwrap();
 
     let mut aln_stats_writer = File::create(aln_stats_path).unwrap();
     write!(aln_stats_writer, AlnStats::header());
@@ -28,7 +27,7 @@ fn run(input_path: String, reference_path: String, aln_stats_path: String) {
         .map(|r| r.unwrap())
         .filter(|r| !r.flags().is_unmapped() && !r.flags().is_secondary())
         .for_each(|record| {
-            let stats = AlnStats::from_record(&references, record);
+            let stats = AlnStats::from_record(&header, &references_seqs, record);
 
             {
                 let writer = aln_stats_writer.lock();

@@ -1,6 +1,8 @@
 use noodles_sam as sam;
 use noodles_fasta as fasta;
 
+use fxhash::FxHashMap;
+
 #[derive(Debug)]
 struct AlnStats {
     read_name: String,
@@ -21,7 +23,7 @@ struct AlnStats {
 }
 
 impl AlnStats {
-    fn from_record(references: &fasta::Repository, r: &sam::Record) -> Self {
+    fn from_record(header: &sam::Header, reference_seqs: &FxHashMap<String, fasta::Record>, r: &sam::Record) -> Self {
         let mut res = AlnStats {
             read_name: r.read_name().unwrap().to_string(),
             q_len: r.sequence().len(),
@@ -41,22 +43,41 @@ impl AlnStats {
         };
 
         let mut matches = 0;
+        let mut ref_pos = r.alignment_start().unwrap();
+        let mut query_pos = 1;
+        let curr_ref_seq = reference_seqs[&r.reference_sequence(header).unwrap().name()].sequence();
 
         for op in cigar {
             match op.kind {
-                Kind::SequenceMatch => matches += 1,
-                Kind::SequenceMismatch => args.mismatches += 1,
+                Kind::SequenceMatch => {
+                    matches += op.len();
+                    query_pos += op.len();
+                    ref_pos += op.len();
+                },
+                Kind::SequenceMismatch => {
+                    res.mismatches += op.len();
+                    query_pos += op.len();
+                    ref_pos += op.len();
+                },
                 Kind::Insertion => {
-
+                    let before_ins = curr_ref_seq[ref_pos];
+                    let after_ins = curr_ref_seq[ref_pos + 1];
+                    let hp = r.sequence()[query_pos..query_pos + op.len()].into_iter().map(|c| c == before_ins || c == after_ins).all();
+                    if hp {
+                        res.hp_ins += op.len();
+                    } else {
+                        res.non_hp_ins += op.len();
+                    }
+                    query_pos += op.len();
                 },
                 Kind::Deletion => {
-
+                    ref_pos += op.len();
                 },
                 _ => panic!("Unexpected CIGAR operation!"),
             }
         }
 
-        let errors = args.mismatches + args.non_hp_ins + args.non_hp_del + args.hp_ins + args.hp_del;
+        let errors = res.mismatches + res.non_hp_ins + res.non_hp_del + res.hp_ins + res.hp_del;
         res.concordance = (matches as f64) / ((matches + errors) as f64);
         res.concordance_qv = concordance_qv(res.concordance, res.q_len, errors > 0);
 
