@@ -2,21 +2,25 @@ use clap::Parser;
 
 use rayon::prelude::*;
 
-use noodles::bam as bam;
-use noodles::fasta as fasta;
+use noodles::bam;
+use noodles::fasta;
 
 use fxhash::FxHashMap;
 
-use std::sync::Mutex;
 use std::fs::File;
-use std::io::{Write, BufReader};
+use std::io::{BufReader, Write};
+use std::sync::Mutex;
 
 mod stats;
 use stats::*;
 
 fn run(input_path: String, reference_path: String, aln_stats_path: String) {
     let mut ref_reader = fasta::Reader::new(BufReader::new(File::open(reference_path).unwrap()));
-    let reference_seqs: FxHashMap<String, fasta::Record> = ref_reader.records().map(|r| r.unwrap()).map(|r| (r.name().to_string(), r)).collect();
+    let reference_seqs: FxHashMap<String, fasta::Record> = ref_reader
+        .records()
+        .map(|r| r.unwrap())
+        .map(|r| (r.name().to_string(), r))
+        .collect();
 
     let mut reader = bam::Reader::new(File::open(input_path).unwrap());
     let header = reader.read_header().unwrap().parse().unwrap();
@@ -42,7 +46,10 @@ fn run(input_path: String, reference_path: String, aln_stats_path: String) {
 fn main() {
     let args = Args::parse();
 
-    rayon::ThreadPoolBuilder::new().num_threads(args.threads).build_global().unwrap();
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(args.threads)
+        .build_global()
+        .unwrap();
 
     run(args.input, args.reference, args.aln_stats);
 }
