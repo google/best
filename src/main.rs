@@ -28,7 +28,7 @@ fn run(input_path: String, reference_path: String, aln_stats_path: String) {
     let references = reader.read_reference_sequences().unwrap();
 
     let mut aln_stats_writer = File::create(aln_stats_path).unwrap();
-    write!(aln_stats_writer, "{}", AlnStats::header()).unwrap();
+    write!(aln_stats_writer, "{}\n", AlnStats::header()).unwrap();
     let aln_stats_writer = Mutex::new(aln_stats_writer);
 
     reader
