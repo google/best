@@ -1,0 +1,10 @@
+[package]
+name = "bam-error-stats"
+version = "0.1.0"
+edition = "2021"
+description = "Analysis of error types in BAM files."
+
+[dependencies]
+clap = { version = "^3.2", features = ["derive"] }
+rayon = "^1.5"
+noodles = { version = "^0.24", features = ["sam", "bam", "fasta", "bed"] }
