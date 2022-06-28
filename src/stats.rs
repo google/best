@@ -29,7 +29,7 @@ pub struct AlnStats {
 
 impl AlnStats {
     pub fn from_record(
-        header: &sam::Header,
+        references: &sam::header::ReferenceSequences,
         reference_seqs: &FxHashMap<String, fasta::Record>,
         r: &bam::lazy::Record,
     ) -> Option<Self> {
@@ -80,7 +80,7 @@ impl AlnStats {
         let mut matches = 0;
         let mut ref_pos = usize::from(r.alignment_start().ok()??);
         let mut query_pos = 1;
-        let curr_ref_name = header.reference_sequences()[r.reference_sequence_id().ok()??]
+        let curr_ref_name = references[r.reference_sequence_id().ok()??]
             .name()
             .to_string();
         let curr_ref_seq = reference_seqs[&curr_ref_name].sequence();
@@ -135,6 +135,9 @@ impl AlnStats {
                         }
                         ref_pos += 1;
                     }
+                }
+                Kind::SoftClip => {
+                    query_pos += op.len();
                 }
                 _ => panic!("Unexpected CIGAR operation!"),
             }

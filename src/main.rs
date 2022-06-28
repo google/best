@@ -10,6 +10,7 @@ use fxhash::FxHashMap;
 use std::fs::File;
 use std::io::{BufReader, Write};
 use std::sync::Mutex;
+use std::time::Instant;
 
 mod stats;
 use stats::*;
@@ -23,7 +24,8 @@ fn run(input_path: String, reference_path: String, aln_stats_path: String) {
         .collect();
 
     let mut reader = bam::Reader::new(File::open(input_path).unwrap());
-    let header = reader.read_header().unwrap().parse().unwrap();
+    reader.read_header().unwrap();
+    let references = reader.read_reference_sequences().unwrap();
 
     let mut aln_stats_writer = File::create(aln_stats_path).unwrap();
     write!(aln_stats_writer, "{}", AlnStats::header()).unwrap();
@@ -34,7 +36,7 @@ fn run(input_path: String, reference_path: String, aln_stats_path: String) {
         .par_bridge()
         .map(|r| r.unwrap())
         .for_each(|record| {
-            let stats = AlnStats::from_record(&header, &reference_seqs, &record);
+            let stats = AlnStats::from_record(&references, &reference_seqs, &record);
 
             if let Some(stats) = stats {
                 let mut writer = aln_stats_writer.lock().unwrap();
@@ -45,6 +47,7 @@ fn run(input_path: String, reference_path: String, aln_stats_path: String) {
 
 fn main() {
     let args = Args::parse();
+    let start_time = Instant::now();
 
     rayon::ThreadPoolBuilder::new()
         .num_threads(args.threads)
@@ -52,6 +55,9 @@ fn main() {
         .unwrap();
 
     run(args.input, args.reference, args.aln_stats);
+
+    let duration = start_time.elapsed();
+    println!("Run time (s): {}", duration.as_secs());
 }
 
 #[derive(Parser)]
