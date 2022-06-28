@@ -1,20 +1,25 @@
-use noodles_sam as sam;
-use noodles_fasta as fasta;
+use noodles::sam as sam;
+use noodles::bam as bam;
+use noodles::fasta as fasta;
+use noodles::core::Position;
+
+use sam::record::cigar::op::Kind;
+use sam::record::data::field::Tag;
 
 use fxhash::FxHashMap;
 
 #[derive(Debug)]
-struct AlnStats {
+pub struct AlnStats {
     read_name: String,
     q_len: usize,
-    effective_cov: f64,
+    effective_cov: f32,
     subread_passes: usize,
-    pred_concordance: f64,
+    pred_concordance: f32,
     supplementary: bool,
-    mapq: usize,
+    mapq: u8,
     interval_q_len: usize,
-    concordance: f64,
-    concordance_qv: f64,
+    concordance: f32,
+    concordance_qv: f32,
     mismatches: usize,
     non_hp_ins: usize,
     non_hp_del: usize,
@@ -23,18 +28,32 @@ struct AlnStats {
 }
 
 impl AlnStats {
-    fn from_record(header: &sam::Header, reference_seqs: &FxHashMap<String, fasta::Record>, r: &sam::Record) -> Self {
+    pub fn from_record(header: &sam::Header, reference_seqs: &FxHashMap<String, fasta::Record>, r: &bam::lazy::Record) -> Option<Self> {
+        let flags = r.flags().ok()?;
+        if flags.is_unmapped() || flags.is_secondary() {
+            return None;
+        }
+
+        let sequence = r.sequence().ok()?;
+        let data = r.data().ok()?;
+        let ec_tag = Tag::try_from(*b"ec").ok()?;
+        let ec = if let Some(v) = data.get(ec_tag) { v.value().as_float()? } else { 0.0 };
+        let np_tag: Tag = Tag::try_from(*b"np").ok()?;
+        let np = if let Some(v) = data.get(np_tag) { v.value().as_int()? as usize } else { 0 };
+        let rq_tag: Tag = Tag::try_from(*b"rq").ok()?;
+        let rq = if let Some(v) = data.get(rq_tag) { v.value().as_float()? } else { 0.0 };
+
         let mut res = AlnStats {
-            read_name: r.read_name().unwrap().to_string(),
-            q_len: r.sequence().len(),
-            effective_cov: r.data().get("ec".into()).unwrap_or(0),
-            subread_passes: r.data().get("np".into()).unwrap_or(0),
-            pred_concordance: r.data().get("rq".into()).unwrap_or(0),
-            supplementary: r.flags().is_supplementary(),
-            mapq: r.mapping_quality().unwrap(),
-            interval_q_len: r.sequence().len(),
-            concordance: 0,
-            concordance_qv: 0,
+            read_name: r.read_name().ok()??.to_string(),
+            q_len: sequence.len(),
+            effective_cov: ec,
+            subread_passes: np,
+            pred_concordance: rq,
+            supplementary: flags.is_supplementary(),
+            mapq: u8::from(r.mapping_quality().ok()??),
+            interval_q_len: sequence.len(),
+            concordance: 0.0,
+            concordance_qv: 0.0,
             mismatches: 0,
             non_hp_ins: 0,
             non_hp_del: 0,
@@ -43,12 +62,13 @@ impl AlnStats {
         };
 
         let mut matches = 0;
-        let mut ref_pos = r.alignment_start().unwrap();
+        let mut ref_pos = usize::from(r.alignment_start().ok()??);
         let mut query_pos = 1;
-        let curr_ref_seq = reference_seqs[&r.reference_sequence(header).unwrap().name()].sequence();
+        let curr_ref_name = header.reference_sequences()[r.reference_sequence_id().ok()??].name().to_string();
+        let curr_ref_seq = reference_seqs[&curr_ref_name].sequence();
 
-        for op in cigar {
-            match op.kind {
+        for op in r.cigar().ok()?.iter() {
+            match op.kind() {
                 Kind::SequenceMatch => {
                     matches += op.len();
                     query_pos += op.len();
@@ -60,9 +80,10 @@ impl AlnStats {
                     ref_pos += op.len();
                 },
                 Kind::Insertion => {
-                    let before_ins = curr_ref_seq[ref_pos];
-                    let after_ins = curr_ref_seq[ref_pos + 1];
-                    let hp = r.sequence()[query_pos..query_pos + op.len()].into_iter().map(|c| c == before_ins || c == after_ins).all();
+                    let before_ins = curr_ref_seq[Position::new(ref_pos)?].to_ascii_uppercase();
+                    let after_ins = curr_ref_seq.get(Position::new(ref_pos + 1)?).unwrap_or(&b'?').to_ascii_uppercase();
+                    let query_range = Position::new(query_pos)?..Position::new(query_pos + op.len())?;
+                    let hp = sequence[query_range].iter().map(|&c| u8::from(c).to_ascii_uppercase()).all(|c| c == before_ins || c == after_ins);
                     if hp {
                         res.hp_ins += op.len();
                     } else {
@@ -71,33 +92,44 @@ impl AlnStats {
                     query_pos += op.len();
                 },
                 Kind::Deletion => {
-                    ref_pos += op.len();
+                    for _i in 0..op.len() {
+                        let before_curr = curr_ref_seq.get(Position::new(ref_pos - 1)?).unwrap_or(&b'?').to_ascii_uppercase();
+                        let after_curr = curr_ref_seq.get(Position::new(ref_pos + 1)?).unwrap_or(&b'?').to_ascii_uppercase();
+                        let curr = curr_ref_seq[Position::new(ref_pos)?].to_ascii_uppercase();
+                        let hp = curr == before_curr || curr == after_curr;
+                        if hp {
+                            res.hp_del += 1;
+                        } else {
+                            res.non_hp_del += 1;
+                        }
+                        ref_pos += 1;
+                    }
                 },
                 _ => panic!("Unexpected CIGAR operation!"),
             }
         }
 
         let errors = res.mismatches + res.non_hp_ins + res.non_hp_del + res.hp_ins + res.hp_del;
-        res.concordance = (matches as f64) / ((matches + errors) as f64);
+        res.concordance = (matches as f32) / ((matches + errors) as f32);
         res.concordance_qv = concordance_qv(res.concordance, res.q_len, errors > 0);
 
-        res
+        Some(res)
     }
 
-    fn header() -> &str {
+    pub fn header() -> &'static str {
         "#read,readLengthBp,effectiveCoverage,subreadPasses,predictedConcordance,alignmentType,alignmentMapq,hcReadLengthBp,concordance,concordanceQv,mismatchBp,nonHpInsertionBp,nonHpDeletionBp,hpInsertionBp,hpDeletionBp"
     }
 
-    fn to_csv(&self) -> String {
+    pub fn to_csv(&self) -> String {
         let supp_str = if self.supplementary { "Supplementary" } else { "Primary" };
-        format!("{},{},{:.2f},{},{:.6f},{},{},{},{:.6f},{:.2f},{},{},{},{},{}", self.read_name, self.q_len, self.effective_cov, self.subread_passes, self.pred_concordance, supp_str, self.mapq, self.interval_q_len, self.concordance, self.concordance_qv, self.mismatches, self.non_hp_ins, self.non_hp_del, self.hp_ins, self.hp_del)
+        format!("{},{},{:.2},{},{:.6},{},{},{},{:.6},{:.2},{},{},{},{},{}", self.read_name, self.q_len, self.effective_cov, self.subread_passes, self.pred_concordance, supp_str, self.mapq, self.interval_q_len, self.concordance, self.concordance_qv, self.mismatches, self.non_hp_ins, self.non_hp_del, self.hp_ins, self.hp_del)
     }
 }
 
-fn concordance_qv(concordance: f64, read_len: usize, has_errors: bool) -> f64 {
-    let qv_cap = 10.0f64 * ((read_len as f64) + 1.0f64).log10();
+fn concordance_qv(concordance: f32, read_len: usize, has_errors: bool) -> f32 {
+    let qv_cap = 10.0f32 * ((read_len as f32) + 1.0f32).log10();
     if has_errors {
-        qv_cap.min(-10.0f64 * (1.0f64 - concordance).log10())
+        qv_cap.min(-10.0f32 * (1.0f32 - concordance).log10())
     } else {
         qv_cap
     }
