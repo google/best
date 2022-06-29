@@ -18,7 +18,7 @@ pub struct AlnStats {
     pred_concordance: Option<f32>,
     supplementary: bool,
     mapq: u8,
-    interval_q_len: usize,
+    read_len: usize,
     concordance: f32,
     concordance_qv: f32,
     mismatches: usize,
@@ -59,8 +59,8 @@ impl AlnStats {
             pred_concordance: rq,
             supplementary: flags.is_supplementary(),
             mapq: u8::from(r.mapping_quality().ok()??),
-            interval_q_len: sequence.len(),
             // fill in the rest afterwards
+            read_len: 0,
             concordance: 0.0,
             concordance_qv: 0.0,
             mismatches: 0,
@@ -138,8 +138,9 @@ impl AlnStats {
         }
 
         let errors = res.mismatches + res.non_hp_ins + res.non_hp_del + res.hp_ins + res.hp_del;
+        res.read_len = matches + res.mismatches + res.non_hp_del + res.hp_del;
         res.concordance = (matches as f32) / ((matches + errors) as f32);
-        res.concordance_qv = concordance_qv(res.concordance, res.q_len, errors > 0);
+        res.concordance_qv = concordance_qv(res.concordance, res.read_len, errors > 0);
 
         Some(res)
     }
@@ -175,7 +176,7 @@ impl AlnStats {
             rq,
             supp_str,
             self.mapq,
-            self.interval_q_len,
+            self.read_len,
             self.concordance,
             self.concordance_qv,
             self.mismatches,
