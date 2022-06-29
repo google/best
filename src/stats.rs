@@ -97,13 +97,17 @@ impl AlnStats {
                         .get(Position::new(ref_pos + 1)?)
                         .unwrap_or(&b'?')
                         .to_ascii_uppercase();
-                    let query_range =
-                        Position::new(query_pos)?..Position::new(query_pos + op.len())?;
-                    let hp = sequence[query_range]
+                    let query_ins =
+                        &sequence[Position::new(query_pos)?..Position::new(query_pos + op.len())?];
+                    let hp_before = query_ins
                         .iter()
                         .map(|&c| u8::from(c).to_ascii_uppercase())
-                        .all(|c| c == before_ins || c == after_ins);
-                    if hp {
+                        .all(|c| c == before_ins);
+                    let hp_after = query_ins
+                        .iter()
+                        .map(|&c| u8::from(c).to_ascii_uppercase())
+                        .all(|c| c == after_ins);
+                    if hp_before || hp_after {
                         res.hp_ins += op.len();
                     } else {
                         res.non_hp_ins += op.len();
