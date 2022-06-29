@@ -1,5 +1,6 @@
 [package]
 name = "bam-error-stats"
+authors = ["Daniel Liu"]
 version = "0.1.0"
 edition = "2021"
 description = "Analysis of error types in BAM files."

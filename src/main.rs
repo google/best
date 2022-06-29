@@ -16,6 +16,7 @@ mod stats;
 use stats::*;
 
 fn run(input_path: String, reference_path: String, aln_stats_path: String) {
+    // read reference sequences from fasta file
     let mut ref_reader = fasta::Reader::new(BufReader::new(File::open(reference_path).unwrap()));
     let reference_seqs: FxHashMap<String, fasta::Record> = ref_reader
         .records()
@@ -23,14 +24,17 @@ fn run(input_path: String, reference_path: String, aln_stats_path: String) {
         .map(|r| (r.name().to_string(), r))
         .collect();
 
+    // read bam file
     let mut reader = bam::Reader::new(File::open(input_path).unwrap());
     reader.read_header().unwrap();
     let references = reader.read_reference_sequences().unwrap();
 
+    // create alignment stats writer that is shared between threads
     let mut aln_stats_writer = File::create(aln_stats_path).unwrap();
     write!(aln_stats_writer, "{}\n", AlnStats::header()).unwrap();
     let aln_stats_writer = Mutex::new(aln_stats_writer);
 
+    // lazily read records to shift parsing work to individual threads
     reader
         .lazy_records()
         .par_bridge()

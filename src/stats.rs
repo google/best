@@ -8,13 +8,14 @@ use sam::record::data::field::Tag;
 
 use fxhash::FxHashMap;
 
+/// Statistics for each alignment.
 #[derive(Debug)]
 pub struct AlnStats {
     read_name: String,
     q_len: usize,
-    effective_cov: f32,
-    subread_passes: usize,
-    pred_concordance: f32,
+    effective_cov: Option<f32>,
+    subread_passes: Option<usize>,
+    pred_concordance: Option<f32>,
     supplementary: bool,
     mapq: u8,
     interval_q_len: usize,
@@ -35,29 +36,20 @@ impl AlnStats {
     ) -> Option<Self> {
         let flags = r.flags().ok()?;
         if flags.is_unmapped() || flags.is_secondary() {
+            // skip
             return None;
         }
 
         let sequence = r.sequence().ok()?;
         let data = r.data().ok()?;
         let ec_tag = Tag::try_from(*b"ec").ok()?;
-        let ec = if let Some(v) = data.get(ec_tag) {
-            v.value().as_float()?
-        } else {
-            0.0
-        };
+        let ec = data.get(ec_tag).map(|f| f.value().as_float().unwrap());
         let np_tag: Tag = Tag::try_from(*b"np").ok()?;
-        let np = if let Some(v) = data.get(np_tag) {
-            v.value().as_int()? as usize
-        } else {
-            0
-        };
+        let np = data
+            .get(np_tag)
+            .map(|f| f.value().as_int().unwrap() as usize);
         let rq_tag: Tag = Tag::try_from(*b"rq").ok()?;
-        let rq = if let Some(v) = data.get(rq_tag) {
-            v.value().as_float()?
-        } else {
-            0.0
-        };
+        let rq = data.get(rq_tag).map(|f| f.value().as_float().unwrap());
 
         let mut res = AlnStats {
             read_name: r.read_name().ok()??.to_string(),
@@ -68,6 +60,7 @@ impl AlnStats {
             supplementary: flags.is_supplementary(),
             mapq: u8::from(r.mapping_quality().ok()??),
             interval_q_len: sequence.len(),
+            // fill in the rest afterwards
             concordance: 0.0,
             concordance_qv: 0.0,
             mismatches: 0,
@@ -85,6 +78,7 @@ impl AlnStats {
             .to_string();
         let curr_ref_seq = reference_seqs[&curr_ref_name].sequence();
 
+        // count mismatches, indels, and homopolymers
         for op in r.cigar().ok()?.iter() {
             match op.kind() {
                 Kind::SequenceMatch => {
@@ -160,13 +154,25 @@ impl AlnStats {
         } else {
             "Primary"
         };
+        let ec = self
+            .effective_cov
+            .map(|x| format!("{:.2}", x))
+            .unwrap_or_else(|| String::new());
+        let np = self
+            .subread_passes
+            .map(|x| format!("{}", x))
+            .unwrap_or_else(|| String::new());
+        let rq = self
+            .pred_concordance
+            .map(|x| format!("{:.6}", x))
+            .unwrap_or_else(|| String::new());
         format!(
             "{},{},{:.2},{},{:.6},{},{},{},{:.6},{:.2},{},{},{},{},{}",
             self.read_name,
             self.q_len,
-            self.effective_cov,
-            self.subread_passes,
-            self.pred_concordance,
+            ec,
+            np,
+            rq,
             supp_str,
             self.mapq,
             self.interval_q_len,
