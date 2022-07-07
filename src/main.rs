@@ -105,7 +105,7 @@ struct Args {
     /// Output directory with statistics.
     stats_prefix: String,
 
-    /// Number of threads.
+    /// Number of threads. Will be automatically determined if this is set to 0.
     #[clap(short, long, default_value_t = 0usize)]
     threads: usize,
 }
