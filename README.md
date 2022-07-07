@@ -5,8 +5,10 @@ Analysis of error types in BAM files.
 ### Running
 1. Install [Rust](https://www.rust-lang.org/tools/install).
 2. Run `cargo build --release`.
-3. Run `cargo run --release -- input.bam reference.fasta per_alignment.csv` or
-`target/release/bam-error-stats input.bam reference.fasta per_alignment.csv`.
+3. Run `cargo run --release -- input.bam reference.fasta bam-error-stats` or
+`target/release/bam-error-stats input.bam reference.fasta bam-error-stats`.
+
+This will generate stats files in the `bam-error-stats` directory.
 
 The built binary is located at `target/release/bam-error-stats`.
 

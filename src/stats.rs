@@ -11,21 +11,26 @@ use fxhash::FxHashMap;
 /// Statistics for each alignment.
 #[derive(Debug)]
 pub struct AlnStats {
-    read_name: String,
-    q_len: usize,
+    pub read_name: String,
+    pub q_len: usize,
     effective_cov: Option<f32>,
     subread_passes: Option<usize>,
     pred_concordance: Option<f32>,
     supplementary: bool,
     mapq: u8,
-    read_len: usize,
-    concordance: f32,
-    concordance_qv: f32,
-    mismatches: usize,
-    non_hp_ins: usize,
-    non_hp_del: usize,
-    hp_ins: usize,
-    hp_del: usize,
+    mean_qual: u8,
+    pub read_len: usize,
+    pub concordance: f32,
+    pub concordance_gc: f32,
+    pub concordance_qv: f32,
+    pub matches: usize,
+    pub mismatches: usize,
+    pub non_hp_ins: usize,
+    pub non_hp_del: usize,
+    pub hp_ins: usize,
+    pub hp_del: usize,
+    pub gc_ins: usize,
+    pub gc_del: usize,
 }
 
 impl AlnStats {
@@ -40,7 +45,9 @@ impl AlnStats {
             return None;
         }
 
+        // note: avoid copying data (especially sequence/quality scores) since they are large
         let sequence = r.sequence().ok()?;
+        let q_scores = r.quality_scores().ok()?;
         let data = r.data().ok()?;
         let ec_tag = Tag::try_from(*b"ec").ok()?;
         let ec = data.get(ec_tag).map(|f| f.value().as_float().unwrap());
@@ -59,18 +66,22 @@ impl AlnStats {
             pred_concordance: rq,
             supplementary: flags.is_supplementary(),
             mapq: u8::from(r.mapping_quality().ok()??),
+            mean_qual: mean_qual(q_scores.as_ref()),
             // fill in the rest afterwards
             read_len: 0,
             concordance: 0.0,
+            concordance_gc: 0.0,
             concordance_qv: 0.0,
+            matches: 0,
             mismatches: 0,
             non_hp_ins: 0,
             non_hp_del: 0,
             hp_ins: 0,
             hp_del: 0,
+            gc_ins: 0,
+            gc_del: 0,
         };
 
-        let mut matches = 0;
         let mut ref_pos = usize::from(r.alignment_start().ok()??);
         let mut query_pos = 1;
         let curr_ref_name = references[r.reference_sequence_id().ok()??]
@@ -82,7 +93,7 @@ impl AlnStats {
         for op in r.cigar().ok()?.iter() {
             match op.kind() {
                 Kind::SequenceMatch => {
-                    matches += op.len();
+                    res.matches += op.len();
                     query_pos += op.len();
                     ref_pos += op.len();
                 }
@@ -113,6 +124,7 @@ impl AlnStats {
                         res.non_hp_ins += op.len();
                     }
                     query_pos += op.len();
+                    res.gc_ins += 1;
                 }
                 Kind::Deletion => {
                     for _i in 0..op.len() {
@@ -133,6 +145,7 @@ impl AlnStats {
                         }
                         ref_pos += 1;
                     }
+                    res.gc_del += 1;
                 }
                 Kind::SoftClip => {
                     query_pos += op.len();
@@ -142,15 +155,16 @@ impl AlnStats {
         }
 
         let errors = res.mismatches + res.non_hp_ins + res.non_hp_del + res.hp_ins + res.hp_del;
-        res.read_len = matches + res.mismatches + res.non_hp_del + res.hp_del;
-        res.concordance = (matches as f32) / ((matches + errors) as f32);
+        res.read_len = res.matches + res.mismatches + res.non_hp_del + res.hp_del;
+        res.concordance = (res.matches as f32) / ((res.matches + errors) as f32);
+        res.concordance_gc = (res.matches as f32) / ((res.matches + res.mismatches + res.gc_ins + res.gc_del) as f32);
         res.concordance_qv = concordance_qv(res.concordance, res.read_len, errors > 0);
 
         Some(res)
     }
 
     pub fn header() -> &'static str {
-        "#read,readLengthBp,effectiveCoverage,subreadPasses,predictedConcordance,alignmentType,alignmentMapq,hcReadLengthBp,concordance,concordanceQv,mismatchBp,nonHpInsertionBp,nonHpDeletionBp,hpInsertionBp,hpDeletionBp"
+        "#read,readLengthBp,effectiveCoverage,subreadPasses,predictedConcordance,alignmentType,alignmentMapq,meanQuality,hcReadLengthBp,concordance,concordanceGc,concordanceQv,mismatchBp,nonHpInsertionBp,nonHpDeletionBp,hpInsertionBp,hpDeletionBp"
     }
 
     pub fn to_csv(&self) -> String {
@@ -172,7 +186,7 @@ impl AlnStats {
             .map(|x| format!("{:.6}", x))
             .unwrap_or_else(|| String::new());
         format!(
-            "{},{},{:.2},{},{:.6},{},{},{},{:.6},{:.2},{},{},{},{},{}",
+            "{},{},{:.2},{},{:.6},{},{},{},{},{:.6},{:.6},{:.2},{},{},{},{},{}",
             self.read_name,
             self.q_len,
             ec,
@@ -180,8 +194,10 @@ impl AlnStats {
             rq,
             supp_str,
             self.mapq,
+            self.mean_qual,
             self.read_len,
             self.concordance,
+            self.concordance_gc,
             self.concordance_qv,
             self.mismatches,
             self.non_hp_ins,
@@ -199,4 +215,9 @@ fn concordance_qv(concordance: f32, read_len: usize, has_errors: bool) -> f32 {
     } else {
         qv_cap
     }
+}
+
+fn mean_qual(q_scores: &[sam::record::quality_scores::Score]) -> u8 {
+    let sum_q = q_scores.iter().map(|&q| 10.0f32.powf(-(u8::from(q) as f32) / 10.0f32)).sum::<f32>();
+    (-10.0f32 * (sum_q / (q_scores.len() as f32)).log10()) as u8
 }
