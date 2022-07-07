@@ -13,6 +13,10 @@ impl YieldSummary {
     }
 
     pub fn update(&mut self, aln_stats: &AlnStats) {
+        if aln_stats.supplementary {
+            return;
+        }
+
         for i in 0..self.q_yield.len() {
             let min_q = i * 5;
             if aln_stats.concordance_qv >= (min_q as f32) {
@@ -49,6 +53,10 @@ impl IdentitySummary {
     }
 
     pub fn update(&mut self, aln_stats: &AlnStats) {
+        if aln_stats.supplementary {
+            return;
+        }
+
         self.matches += aln_stats.matches;
         self.mismatches += aln_stats.mismatches;
         self.ins += aln_stats.non_hp_ins + aln_stats.hp_ins;

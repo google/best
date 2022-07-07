@@ -16,7 +16,7 @@ pub struct AlnStats {
     effective_cov: Option<f32>,
     subread_passes: Option<usize>,
     pred_concordance: Option<f32>,
-    supplementary: bool,
+    pub supplementary: bool,
     mapq: u8,
     mean_qual: u8,
     pub read_len: usize,
