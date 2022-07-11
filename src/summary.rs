@@ -3,13 +3,17 @@ use std::fmt;
 use crate::stats::*;
 
 pub struct YieldSummary {
+    prefix: String,
     /// (reads, bases)
-    q_yield: [(usize, usize); 10]
+    q_yield: [(usize, usize); 10],
 }
 
 impl YieldSummary {
-    pub fn new() -> Self {
-        Self { q_yield: [(0usize, 0usize); 10] }
+    pub fn new(prefix: String) -> Self {
+        Self {
+            prefix,
+            q_yield: [(0usize, 0usize); 10],
+        }
     }
 
     pub fn update(&mut self, aln_stats: &AlnStats) {
@@ -29,9 +33,16 @@ impl YieldSummary {
 
 impl fmt::Display for YieldSummary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "min_empirical_Q,yield_reads,yield_bases")?;
+        writeln!(f, "prefix,min_empirical_Q,yield_reads,yield_bases")?;
         for i in 0..self.q_yield.len() {
-            writeln!(f, "{},{},{}", i * 5, self.q_yield[i].0, self.q_yield[i].1)?;
+            writeln!(
+                f,
+                "{},{},{},{}",
+                self.prefix,
+                i * 5,
+                self.q_yield[i].0,
+                self.q_yield[i].1
+            )?;
         }
         Ok(())
     }
@@ -39,6 +50,7 @@ impl fmt::Display for YieldSummary {
 
 #[derive(Default)]
 pub struct IdentitySummary {
+    prefix: String,
     matches: usize,
     mismatches: usize,
     ins: usize,
@@ -48,8 +60,11 @@ pub struct IdentitySummary {
 }
 
 impl IdentitySummary {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(prefix: String) -> Self {
+        Self {
+            prefix,
+            ..Default::default()
+        }
     }
 
     pub fn update(&mut self, aln_stats: &AlnStats) {
@@ -68,9 +83,11 @@ impl IdentitySummary {
 
 impl fmt::Display for IdentitySummary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "identity,gap_compressed_identity")?;
-        let id = (self.matches as f32) / ((self.matches + self.mismatches + self.ins + self.del) as f32);
-        let gc_id = (self.matches as f32) / ((self.matches + self.mismatches + self.gc_ins + self.gc_del) as f32);
-        writeln!(f, "{},{}", id, gc_id)
+        writeln!(f, "prefix,identity,gap_compressed_identity")?;
+        let id =
+            (self.matches as f32) / ((self.matches + self.mismatches + self.ins + self.del) as f32);
+        let gc_id = (self.matches as f32)
+            / ((self.matches + self.mismatches + self.gc_ins + self.gc_del) as f32);
+        writeln!(f, "{},{},{}", self.prefix, id, gc_id)
     }
 }

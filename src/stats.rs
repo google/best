@@ -157,14 +157,15 @@ impl AlnStats {
         let errors = res.mismatches + res.non_hp_ins + res.non_hp_del + res.hp_ins + res.hp_del;
         res.read_len = res.matches + res.mismatches + res.non_hp_del + res.hp_del;
         res.concordance = (res.matches as f32) / ((res.matches + errors) as f32);
-        res.concordance_gc = (res.matches as f32) / ((res.matches + res.mismatches + res.gc_ins + res.gc_del) as f32);
+        res.concordance_gc = (res.matches as f32)
+            / ((res.matches + res.mismatches + res.gc_ins + res.gc_del) as f32);
         res.concordance_qv = concordance_qv(res.concordance, res.read_len, errors > 0);
 
         Some(res)
     }
 
     pub fn header() -> &'static str {
-        "#read,readLengthBp,effectiveCoverage,subreadPasses,predictedConcordance,alignmentType,alignmentMapq,meanQuality,hcReadLengthBp,concordance,concordanceGc,concordanceQv,mismatchBp,nonHpInsertionBp,nonHpDeletionBp,hpInsertionBp,hpDeletionBp"
+        "read,readLengthBp,effectiveCoverage,subreadPasses,predictedConcordance,alignmentType,alignmentMapq,meanQuality,hcReadLengthBp,concordance,concordanceGc,concordanceQv,mismatchBp,nonHpInsertionBp,nonHpDeletionBp,hpInsertionBp,hpDeletionBp"
     }
 
     pub fn to_csv(&self) -> String {
@@ -218,6 +219,9 @@ fn concordance_qv(concordance: f32, read_len: usize, has_errors: bool) -> f32 {
 }
 
 fn mean_qual(q_scores: &[sam::record::quality_scores::Score]) -> u8 {
-    let sum_q = q_scores.iter().map(|&q| 10.0f32.powf(-(u8::from(q) as f32) / 10.0f32)).sum::<f32>();
+    let sum_q = q_scores
+        .iter()
+        .map(|&q| 10.0f32.powf(-(u8::from(q) as f32) / 10.0f32))
+        .sum::<f32>();
     (-10.0f32 * (sum_q / (q_scores.len() as f32)).log10()) as u8
 }
