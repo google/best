@@ -159,7 +159,7 @@ impl AlnStats {
         res.concordance = (res.matches as f32) / ((res.matches + errors) as f32);
         res.concordance_gc = (res.matches as f32)
             / ((res.matches + res.mismatches + res.gc_ins + res.gc_del) as f32);
-        res.concordance_qv = concordance_qv(res.concordance, res.read_len, errors > 0);
+        res.concordance_qv = concordance_qv(res.concordance, errors > 0);
 
         Some(res)
     }
@@ -209,12 +209,11 @@ impl AlnStats {
     }
 }
 
-fn concordance_qv(concordance: f32, read_len: usize, has_errors: bool) -> f32 {
-    let qv_cap = 10.0f32 * ((read_len as f32) + 1.0f32).log10();
+fn concordance_qv(concordance: f32, has_errors: bool) -> f32 {
     if has_errors {
-        qv_cap.min(-10.0f32 * (1.0f32 - concordance).log10())
+        -10.0f32 * (1.0f32 - concordance).log10()
     } else {
-        qv_cap
+        60.0f32
     }
 }
 
@@ -223,5 +222,5 @@ fn mean_qual(q_scores: &[sam::record::quality_scores::Score]) -> u8 {
         .iter()
         .map(|&q| 10.0f32.powf(-(u8::from(q) as f32) / 10.0f32))
         .sum::<f32>();
-    (-10.0f32 * (sum_q / (q_scores.len() as f32)).log10()) as u8
+    (-10.0f32 * (sum_q / (q_scores.len() as f32)).log10()).round() as u8
 }
