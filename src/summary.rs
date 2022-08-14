@@ -95,7 +95,19 @@ impl fmt::Display for IdentitySummary {
         let gc_id = (self.matches as f32)
             / ((self.matches + self.mismatches + self.gc_ins + self.gc_del) as f32);
         let per_read = |x| (x as f64) / (self.num_reads as f64);
-        writeln!(f, "{},{},{},{},{},{},{},{},{}", self.prefix, id, gc_id, per_read(self.matches), per_read(self.mismatches), per_read(self.ins), per_read(self.del), per_read(self.hp_ins), per_read(self.hp_del))
+        writeln!(
+            f,
+            "{},{},{},{},{},{},{},{},{}",
+            self.prefix,
+            id,
+            gc_id,
+            per_read(self.matches),
+            per_read(self.mismatches),
+            per_read(self.ins),
+            per_read(self.del),
+            per_read(self.hp_ins),
+            per_read(self.hp_del)
+        )
     }
 }
 
@@ -118,7 +130,10 @@ impl<'a> FeatureSummary<'a> {
         }
 
         for (k, v) in &aln_stats.feature_stats {
-            self.feature_stats.entry(k).or_insert_with(|| FeatureStats::default()).assign_add(v);
+            self.feature_stats
+                .entry(k)
+                .or_insert_with(|| FeatureStats::default())
+                .assign_add(v);
         }
     }
 }
@@ -130,7 +145,19 @@ impl fmt::Display for IdentitySummary {
         v.sort_by_key(|x| x.0);
         for (feature, stats) in v.into_iter() {
             let per_feature = |x| (x as f64) / (stats.overlaps as f64);
-            writeln!(f, "{},{},{},{},{},{},{},{},{}", self.prefix, feature, per_feature(stats.num_bases()), per_feature(stats.matches), per_feature(stats.mismatches), per_feature(stats.ins), per_feature(stats.del), per_feature(stats.hp_ins), per_feature(stats.hp_del))
+            writeln!(
+                f,
+                "{},{},{},{},{},{},{},{},{}",
+                self.prefix,
+                feature,
+                per_feature(stats.num_bases()),
+                per_feature(stats.matches),
+                per_feature(stats.mismatches),
+                per_feature(stats.ins),
+                per_feature(stats.del),
+                per_feature(stats.hp_ins),
+                per_feature(stats.hp_del)
+            )
         }
     }
 }

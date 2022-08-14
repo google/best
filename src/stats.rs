@@ -120,7 +120,10 @@ impl<'a> AlnStats<'a> {
         };
 
         for i in intervals {
-            res.feature_stats.entry(&i.feature).or_insert_with(|| FeatureStats::default()).overlaps += 1;
+            res.feature_stats
+                .entry(&i.feature)
+                .or_insert_with(|| FeatureStats::default())
+                .overlaps += 1;
         }
 
         let mut ref_pos = usize::from(r.alignment_start().ok()??);
@@ -137,7 +140,8 @@ impl<'a> AlnStats<'a> {
                 while interval_idx < intervals.len() && ref_pos >= intervals[interval_idx].stop {
                     interval_idx += 1;
                 }
-                let in_interval = interval_idx < intervals.len() && ref_pos >= intervals[interval_idx].start;
+                let in_interval =
+                    interval_idx < intervals.len() && ref_pos >= intervals[interval_idx].start;
                 let curr_feature = if in_interval {
                     Some(&mut res.feature_stats[intervals[interval_idx].val])
                 } else {
@@ -147,13 +151,17 @@ impl<'a> AlnStats<'a> {
                 match op.kind() {
                     Kind::SequenceMatch => {
                         res.matches += 1;
-                        if in_interval { curr_feature.unwrap().matches += 1 };
+                        if in_interval {
+                            curr_feature.unwrap().matches += 1
+                        };
                         query_pos += 1;
                         ref_pos += 1;
                     }
                     Kind::SequenceMismatch => {
                         res.mismatches += 1;
-                        if in_interval { curr_feature.unwrap().mismatches += 1 };
+                        if in_interval {
+                            curr_feature.unwrap().mismatches += 1
+                        };
                         query_pos += 1;
                         ref_pos += 1;
                     }
@@ -165,8 +173,8 @@ impl<'a> AlnStats<'a> {
                             .get(Position::new(ref_pos + 1)?)
                             .unwrap_or(&b'?')
                             .to_ascii_uppercase();
-                        let query_ins =
-                            &sequence[Position::new(query_pos)?..Position::new(query_pos + op.len())?];
+                        let query_ins = &sequence
+                            [Position::new(query_pos)?..Position::new(query_pos + op.len())?];
                         let hp_before = query_ins
                             .iter()
                             .map(|&c| u8::from(c).to_ascii_uppercase())
@@ -177,10 +185,14 @@ impl<'a> AlnStats<'a> {
                             .all(|c| c == after_ins);
                         if hp_before || hp_after {
                             res.hp_ins += op.len();
-                            if in_interval { curr_feature.unwrap().hp_ins += op.len() };
+                            if in_interval {
+                                curr_feature.unwrap().hp_ins += op.len()
+                            };
                         } else {
                             res.non_hp_ins += op.len();
-                            if in_interval { curr_feature.unwrap().non_hp_ins += op.len() };
+                            if in_interval {
+                                curr_feature.unwrap().non_hp_ins += op.len()
+                            };
                         }
                         query_pos += op.len();
                         break;
@@ -198,10 +210,14 @@ impl<'a> AlnStats<'a> {
                         let hp = curr == before_curr || curr == after_curr;
                         if hp {
                             res.hp_del += 1;
-                            if in_interval { curr_feature.unwrap().hp_del += 1 };
+                            if in_interval {
+                                curr_feature.unwrap().hp_del += 1
+                            };
                         } else {
                             res.non_hp_del += 1;
-                            if in_interval { curr_feature.unwrap().non_hp_del += 1 };
+                            if in_interval {
+                                curr_feature.unwrap().non_hp_del += 1
+                            };
                         }
                         ref_pos += 1;
                     }

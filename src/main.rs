@@ -24,7 +24,12 @@ const YIELD_STATS_NAME: &str = "summary_yield_stats.csv";
 const IDENTITY_STATS_NAME: &str = "summary_identity_stats.csv";
 const FEATURE_STATS_NAME: &str = "summary_feature_stats.csv";
 
-fn run(input_path: String, reference_path: String, stats_prefix: String, intervals_path: Option<String>) {
+fn run(
+    input_path: String,
+    reference_path: String,
+    stats_prefix: String,
+    intervals_path: Option<String>,
+) {
     // read reference sequences from fasta file
     let mut ref_reader = fasta::Reader::new(BufReader::new(File::open(reference_path).unwrap()));
     let reference_seqs: FxHashMap<String, fasta::Record> = ref_reader
@@ -56,19 +61,27 @@ fn run(input_path: String, reference_path: String, stats_prefix: String, interva
         .par_bridge()
         .map(|r| r.unwrap())
         .for_each(|record| {
-            let aln_ref = references[record.reference_sequence_id().unwrap().unwrap()].name().as_str();
+            let aln_ref = references[record.reference_sequence_id().unwrap().unwrap()]
+                .name()
+                .as_str();
             // convert to one-indexed [aln_start, aln_end)
             let aln_start = usize::from(record.alignment_start().unwrap());
             let aln_end = usize::from(record.alignment_end().unwrap()) + 1;
-            let overlap_intervals = intervals.map(|i| i.find(aln_ref, aln_start, aln_end)).unwrap_or_else(|| Vec::new());
+            let overlap_intervals = intervals
+                .map(|i| i.find(aln_ref, aln_start, aln_end))
+                .unwrap_or_else(|| Vec::new());
 
-            let stats = AlnStats::from_record(&references, &reference_seqs, &record, &overlap_intervals);
+            let stats =
+                AlnStats::from_record(&references, &reference_seqs, &record, &overlap_intervals);
 
             if let Some(stats) = stats {
                 summary_yield.lock().unwrap().update(&stats);
                 summary_identity.lock().unwrap().update(&stats);
                 if intervals.is_some() {
-                    summary_features.lock().unwrap().update(&stats.feature_stats);
+                    summary_features
+                        .lock()
+                        .unwrap()
+                        .update(&stats.feature_stats);
                 }
 
                 let mut writer = aln_stats_writer.lock().unwrap();
@@ -103,7 +116,12 @@ fn main() {
         .build_global()
         .unwrap();
 
-    run(args.input, args.reference, args.stats_prefix, args.intervals);
+    run(
+        args.input,
+        args.reference,
+        args.stats_prefix,
+        args.intervals,
+    );
 
     let duration = start_time.elapsed();
     println!("Run time (s): {}", duration.as_secs());
