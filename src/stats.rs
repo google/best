@@ -8,9 +8,11 @@ use sam::record::data::field::Tag;
 
 use fxhash::FxHashMap;
 
+use lapper::Interval;
+
 /// Statistics for each alignment.
 #[derive(Debug)]
-pub struct AlnStats {
+pub struct AlnStats<'a> {
     pub read_name: String,
     pub q_len: usize,
     effective_cov: Option<f32>,
@@ -31,13 +33,47 @@ pub struct AlnStats {
     pub hp_del: usize,
     pub gc_ins: usize,
     pub gc_del: usize,
+    pub feature_stats: FxHashMap<&'a str, FeatureStats>,
 }
 
-impl AlnStats {
+/// Statistics for each interval feature.
+#[derive(Debug, Default)]
+pub struct FeatureStats {
+    pub overlaps: usize,
+    pub matches: usize,
+    pub mismatches: usize,
+    pub non_hp_ins: usize,
+    pub non_hp_del: usize,
+    pub hp_ins: usize,
+    pub hp_del: usize,
+    pub gc_ins: usize,
+    pub gc_del: usize,
+}
+
+impl FeatureStats {
+    pub fn assign_add(&mut self, o: &Self) {
+        self.overlaps += o.overlaps;
+        self.matches += o.matches;
+        self.mismatches += o.mismatches;
+        self.non_hp_ins += o.non_hp_ins;
+        self.non_hp_del += o.non_hp_del;
+        self.hp_ins += o.hp_ins;
+        self.hp_del += o.hp_del;
+        self.gc_ins += o.gc_ins;
+        self.gc_del += o.gc_del;
+    }
+
+    pub fn num_bases(&self) -> usize {
+        self.matches + self.mismatches + self.non_hp_del + self.hp_del
+    }
+}
+
+impl<'a> AlnStats<'a> {
     pub fn from_record(
         references: &sam::header::ReferenceSequences,
         reference_seqs: &FxHashMap<String, fasta::Record>,
         r: &bam::lazy::Record,
+        intervals: &'a [Interval],
     ) -> Option<Self> {
         let flags = r.flags().ok()?;
         if flags.is_unmapped() || flags.is_secondary() {
@@ -80,10 +116,16 @@ impl AlnStats {
             hp_del: 0,
             gc_ins: 0,
             gc_del: 0,
+            feature_stats: FxHashMap::default(),
         };
+
+        for i in intervals {
+            res.feature_stats.entry(&i.feature).or_insert_with(|| FeatureStats::default()).overlaps += 1;
+        }
 
         let mut ref_pos = usize::from(r.alignment_start().ok()??);
         let mut query_pos = 1;
+        let mut interval_idx = 0;
         let curr_ref_name = references[r.reference_sequence_id().ok()??]
             .name()
             .to_string();
@@ -91,43 +133,59 @@ impl AlnStats {
 
         // count mismatches, indels, and homopolymers
         for op in r.cigar().ok()?.iter() {
-            match op.kind() {
-                Kind::SequenceMatch => {
-                    res.matches += op.len();
-                    query_pos += op.len();
-                    ref_pos += op.len();
+            for _i in 0..op.len() {
+                while interval_idx < intervals.len() && ref_pos >= intervals[interval_idx].stop {
+                    interval_idx += 1;
                 }
-                Kind::SequenceMismatch => {
-                    res.mismatches += op.len();
-                    query_pos += op.len();
-                    ref_pos += op.len();
-                }
-                Kind::Insertion => {
-                    let before_ins = curr_ref_seq[Position::new(ref_pos)?].to_ascii_uppercase();
-                    let after_ins = curr_ref_seq
-                        .get(Position::new(ref_pos + 1)?)
-                        .unwrap_or(&b'?')
-                        .to_ascii_uppercase();
-                    let query_ins =
-                        &sequence[Position::new(query_pos)?..Position::new(query_pos + op.len())?];
-                    let hp_before = query_ins
-                        .iter()
-                        .map(|&c| u8::from(c).to_ascii_uppercase())
-                        .all(|c| c == before_ins);
-                    let hp_after = query_ins
-                        .iter()
-                        .map(|&c| u8::from(c).to_ascii_uppercase())
-                        .all(|c| c == after_ins);
-                    if hp_before || hp_after {
-                        res.hp_ins += op.len();
-                    } else {
-                        res.non_hp_ins += op.len();
+                let in_interval = interval_idx < intervals.len() && ref_pos >= intervals[interval_idx].start;
+                let curr_feature = if in_interval {
+                    Some(&mut res.feature_stats[intervals[interval_idx].val])
+                } else {
+                    None
+                };
+
+                match op.kind() {
+                    Kind::SequenceMatch => {
+                        res.matches += 1;
+                        if in_interval { curr_feature.unwrap().matches += 1 };
+                        query_pos += 1;
+                        ref_pos += 1;
                     }
-                    query_pos += op.len();
-                    res.gc_ins += 1;
-                }
-                Kind::Deletion => {
-                    for _i in 0..op.len() {
+                    Kind::SequenceMismatch => {
+                        res.mismatches += 1;
+                        if in_interval { curr_feature.unwrap().mismatches += 1 };
+                        query_pos += 1;
+                        ref_pos += 1;
+                    }
+                    Kind::Insertion => {
+                        // can be computed without looping through the number of insertions
+                        // this does not modify ref_pos
+                        let before_ins = curr_ref_seq[Position::new(ref_pos)?].to_ascii_uppercase();
+                        let after_ins = curr_ref_seq
+                            .get(Position::new(ref_pos + 1)?)
+                            .unwrap_or(&b'?')
+                            .to_ascii_uppercase();
+                        let query_ins =
+                            &sequence[Position::new(query_pos)?..Position::new(query_pos + op.len())?];
+                        let hp_before = query_ins
+                            .iter()
+                            .map(|&c| u8::from(c).to_ascii_uppercase())
+                            .all(|c| c == before_ins);
+                        let hp_after = query_ins
+                            .iter()
+                            .map(|&c| u8::from(c).to_ascii_uppercase())
+                            .all(|c| c == after_ins);
+                        if hp_before || hp_after {
+                            res.hp_ins += op.len();
+                            if in_interval { curr_feature.unwrap().hp_ins += op.len() };
+                        } else {
+                            res.non_hp_ins += op.len();
+                            if in_interval { curr_feature.unwrap().non_hp_ins += op.len() };
+                        }
+                        query_pos += op.len();
+                        break;
+                    }
+                    Kind::Deletion => {
                         let before_curr = curr_ref_seq
                             .get(Position::new(ref_pos - 1)?)
                             .unwrap_or(&b'?')
@@ -140,17 +198,26 @@ impl AlnStats {
                         let hp = curr == before_curr || curr == after_curr;
                         if hp {
                             res.hp_del += 1;
+                            if in_interval { curr_feature.unwrap().hp_del += 1 };
                         } else {
                             res.non_hp_del += 1;
+                            if in_interval { curr_feature.unwrap().non_hp_del += 1 };
                         }
                         ref_pos += 1;
                     }
-                    res.gc_del += 1;
+                    Kind::SoftClip => {
+                        // does not require looping through the number of soft clips
+                        query_pos += op.len();
+                        break;
+                    }
+                    _ => panic!("Unexpected CIGAR operation!"),
                 }
-                Kind::SoftClip => {
-                    query_pos += op.len();
-                }
-                _ => panic!("Unexpected CIGAR operation!"),
+            }
+
+            // gap compressed
+            match op.kind() {
+                Kind::Insertion => res.gc_ins += 1,
+                Kind::Deletion => res.gc_del += 1,
             }
         }
 
