@@ -1,6 +1,12 @@
+use std::fs::File;
+use std::io::prelude::*;
+use std::io::BufReader;
+
 use fxhash::{FxHashMap, FxHashSet};
 
 use rust_lapper::{Interval, Lapper};
+
+pub type FeatureInterval = Interval<usize, String>;
 
 pub struct Intervals {
     intervals: FxHashMap<String, Lapper<usize, String>>,
@@ -11,22 +17,23 @@ impl Intervals {
     pub fn new(bed_path: &str) -> Self {
         let mut intervals = FxHashMap::default();
         let mut features = FxHashSet::default();
-        let mut reader = BufReader::new(File::open(bed_path).expect("BED file not found."));
+        let reader = BufReader::new(File::open(bed_path).expect("BED file not found."));
 
         for line in reader.lines() {
-            let fields = line.split('\t');
-            let chrom = line.next().unwrap().to_owned();
-            let start = line.next().unwrap().parse::<usize>();
-            let stop = line.next().unwrap().parse::<usize>();
-            let feature = line.next().unwrap().to_owned();
+            let line = line.unwrap();
+            let mut fields = line.split('\t');
+            let chrom = fields.next().unwrap().to_owned();
+            let start = fields.next().unwrap().parse::<usize>().unwrap();
+            let stop = fields.next().unwrap().parse::<usize>().unwrap();
+            let feature = fields.next().unwrap().to_owned();
 
             intervals
-                .entry(&chrom)
-                .or_insert_with(|| Vec::<Interval>::new())
+                .entry(chrom)
+                .or_insert_with(|| Vec::<FeatureInterval>::new())
                 .push(Interval {
                     start,
                     stop,
-                    val: feature,
+                    val: feature.clone(),
                 });
             features.insert(feature);
         }
@@ -34,13 +41,13 @@ impl Intervals {
         Self {
             intervals: intervals
                 .into_iter()
-                .map(|k, v| (k, Lapper::new(v)))
+                .map(|(k, v)| (k, Lapper::new(v)))
                 .collect(),
             features,
         }
     }
 
-    pub fn find(&self, chrom: &str, start: usize, end: usize) -> Vec<&Interval> {
+    pub fn find(&self, chrom: &str, start: usize, end: usize) -> Vec<&FeatureInterval> {
         self.intervals
             .get(chrom)
             .map(|x| x.find(start, end).collect())

@@ -1,5 +1,7 @@
 use std::fmt;
 
+use fxhash::FxHashMap;
+
 use crate::stats::*;
 
 pub struct YieldSummary {
@@ -124,7 +126,7 @@ impl<'a> FeatureSummary<'a> {
         }
     }
 
-    pub fn update(&mut self, aln_stats: &'a AlnStats) {
+    pub fn update(&mut self, aln_stats: &AlnStats<'a>) {
         if aln_stats.supplementary {
             return;
         }
@@ -138,9 +140,9 @@ impl<'a> FeatureSummary<'a> {
     }
 }
 
-impl fmt::Display for IdentitySummary {
+impl<'a> fmt::Display for FeatureSummary<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "prefix,feature,bases_per_read,matches_per_read,mismatches_per_read,ins_per_read,del_per_read,hp_ins_per_read,hp_del_per_read")?;
+        writeln!(f, "prefix,feature,bases_per_read,matches_per_read,mismatches_per_read,non_hp_ins_per_read,non_hp_del_per_read,hp_ins_per_read,hp_del_per_read")?;
         let mut v = self.feature_stats.iter().collect::<Vec<_>>();
         v.sort_by_key(|x| x.0);
         for (feature, stats) in v.into_iter() {
@@ -153,11 +155,12 @@ impl fmt::Display for IdentitySummary {
                 per_feature(stats.num_bases()),
                 per_feature(stats.matches),
                 per_feature(stats.mismatches),
-                per_feature(stats.ins),
-                per_feature(stats.del),
+                per_feature(stats.non_hp_ins),
+                per_feature(stats.non_hp_del),
                 per_feature(stats.hp_ins),
                 per_feature(stats.hp_del)
-            )
+            )?;
         }
+        Ok(())
     }
 }

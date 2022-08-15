@@ -43,7 +43,7 @@ fn run(
     reader.read_header().unwrap();
     let references = reader.read_reference_sequences().unwrap();
 
-    let intervals = intervals_path.map(|p| get_bed_intervals(&p));
+    let intervals = intervals_path.map(|p| Intervals::new(&p));
 
     // create per alignment stats writer that is shared between threads
     let aln_stats_path = format!("{}.{}", stats_prefix, PER_ALN_STATS_NAME);
@@ -65,9 +65,10 @@ fn run(
                 .name()
                 .as_str();
             // convert to one-indexed [aln_start, aln_end)
-            let aln_start = usize::from(record.alignment_start().unwrap());
-            let aln_end = usize::from(record.alignment_end().unwrap()) + 1;
+            let aln_start = usize::from(record.alignment_start().unwrap().unwrap());
+            let aln_end = aln_start + record.cigar().unwrap().alignment_span();
             let overlap_intervals = intervals
+                .as_ref()
                 .map(|i| i.find(aln_ref, aln_start, aln_end))
                 .unwrap_or_else(|| Vec::new());
 
@@ -78,10 +79,7 @@ fn run(
                 summary_yield.lock().unwrap().update(&stats);
                 summary_identity.lock().unwrap().update(&stats);
                 if intervals.is_some() {
-                    summary_features
-                        .lock()
-                        .unwrap()
-                        .update(&stats.feature_stats);
+                    summary_features.lock().unwrap().update(&stats);
                 }
 
                 let mut writer = aln_stats_writer.lock().unwrap();
@@ -102,8 +100,8 @@ fn run(
     if intervals.is_some() {
         let summary_features = summary_features.into_inner().unwrap();
         let summary_features_path = format!("{}.{}", stats_prefix, FEATURE_STATS_NAME);
-        let mut summary_identity_writer = File::create(&summary_identity_path).unwrap();
-        write!(summary_identity_writer, "{}", summary_identity).unwrap();
+        let mut summary_features_writer = File::create(&summary_features_path).unwrap();
+        write!(summary_features_writer, "{}", summary_features).unwrap();
     }
 }
 

@@ -8,7 +8,7 @@ use sam::record::data::field::Tag;
 
 use fxhash::FxHashMap;
 
-use lapper::Interval;
+use crate::bed::*;
 
 /// Statistics for each alignment.
 #[derive(Debug)]
@@ -73,7 +73,7 @@ impl<'a> AlnStats<'a> {
         references: &sam::header::ReferenceSequences,
         reference_seqs: &FxHashMap<String, fasta::Record>,
         r: &bam::lazy::Record,
-        intervals: &'a [Interval],
+        intervals: &[&'a FeatureInterval],
     ) -> Option<Self> {
         let flags = r.flags().ok()?;
         if flags.is_unmapped() || flags.is_secondary() {
@@ -121,7 +121,7 @@ impl<'a> AlnStats<'a> {
 
         for i in intervals {
             res.feature_stats
-                .entry(&i.feature)
+                .entry(&i.val)
                 .or_insert_with(|| FeatureStats::default())
                 .overlaps += 1;
         }
@@ -143,7 +143,11 @@ impl<'a> AlnStats<'a> {
                 let in_interval =
                     interval_idx < intervals.len() && ref_pos >= intervals[interval_idx].start;
                 let curr_feature = if in_interval {
-                    Some(&mut res.feature_stats[intervals[interval_idx].val])
+                    Some(
+                        res.feature_stats
+                            .get_mut(intervals[interval_idx].val.as_str())
+                            .unwrap(),
+                    )
                 } else {
                     None
                 };
@@ -152,16 +156,16 @@ impl<'a> AlnStats<'a> {
                     Kind::SequenceMatch => {
                         res.matches += 1;
                         if in_interval {
-                            curr_feature.unwrap().matches += 1
-                        };
+                            curr_feature.unwrap().matches += 1;
+                        }
                         query_pos += 1;
                         ref_pos += 1;
                     }
                     Kind::SequenceMismatch => {
                         res.mismatches += 1;
                         if in_interval {
-                            curr_feature.unwrap().mismatches += 1
-                        };
+                            curr_feature.unwrap().mismatches += 1;
+                        }
                         query_pos += 1;
                         ref_pos += 1;
                     }
@@ -186,13 +190,13 @@ impl<'a> AlnStats<'a> {
                         if hp_before || hp_after {
                             res.hp_ins += op.len();
                             if in_interval {
-                                curr_feature.unwrap().hp_ins += op.len()
-                            };
+                                curr_feature.unwrap().hp_ins += op.len();
+                            }
                         } else {
                             res.non_hp_ins += op.len();
                             if in_interval {
-                                curr_feature.unwrap().non_hp_ins += op.len()
-                            };
+                                curr_feature.unwrap().non_hp_ins += op.len();
+                            }
                         }
                         query_pos += op.len();
                         break;
@@ -211,13 +215,13 @@ impl<'a> AlnStats<'a> {
                         if hp {
                             res.hp_del += 1;
                             if in_interval {
-                                curr_feature.unwrap().hp_del += 1
-                            };
+                                curr_feature.unwrap().hp_del += 1;
+                            }
                         } else {
                             res.non_hp_del += 1;
                             if in_interval {
-                                curr_feature.unwrap().non_hp_del += 1
-                            };
+                                curr_feature.unwrap().non_hp_del += 1;
+                            }
                         }
                         ref_pos += 1;
                     }
@@ -234,6 +238,7 @@ impl<'a> AlnStats<'a> {
             match op.kind() {
                 Kind::Insertion => res.gc_ins += 1,
                 Kind::Deletion => res.gc_del += 1,
+                _ => (),
             }
         }
 
