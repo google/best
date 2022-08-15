@@ -134,11 +134,12 @@ struct Args {
     /// Input reference FASTA file.
     reference: String,
 
-    /// Input intervals BED file.
-    intervals: Option<String>,
-
     /// Output directory with statistics.
     stats_prefix: String,
+
+    /// Input intervals BED file.
+    #[clap(short, long)]
+    intervals: Option<String>,
 
     /// Number of threads. Will be automatically determined if this is set to 0.
     #[clap(short, long, default_value_t = 0usize)]
