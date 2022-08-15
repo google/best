@@ -99,7 +99,7 @@ impl fmt::Display for IdentitySummary {
         let per_read = |x| (x as f64) / (self.num_reads as f64);
         writeln!(
             f,
-            "{},{},{},{},{},{},{},{},{}",
+            "{},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6}",
             self.prefix,
             id,
             gc_id,
@@ -142,23 +142,23 @@ impl<'a> FeatureSummary<'a> {
 
 impl<'a> fmt::Display for FeatureSummary<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "prefix,feature,bases_per_read,matches_per_read,mismatches_per_read,non_hp_ins_per_read,non_hp_del_per_read,hp_ins_per_read,hp_del_per_read")?;
+        writeln!(f, "prefix,feature,bases_per_interval,matches_per_interval,mismatches_per_interval,non_hp_ins_per_interval,non_hp_del_per_interval,hp_ins_per_interval,hp_del_per_interval")?;
         let mut v = self.feature_stats.iter().collect::<Vec<_>>();
         v.sort_by_key(|x| x.0);
         for (feature, stats) in v.into_iter() {
-            let per_feature = |x| (x as f64) / (stats.overlaps as f64);
+            let per_interval = |x| (x as f64) / (stats.overlaps as f64);
             writeln!(
                 f,
-                "{},{},{},{},{},{},{},{},{}",
+                "{},{},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6}",
                 self.prefix,
                 feature,
-                per_feature(stats.num_bases()),
-                per_feature(stats.matches),
-                per_feature(stats.mismatches),
-                per_feature(stats.non_hp_ins),
-                per_feature(stats.non_hp_del),
-                per_feature(stats.hp_ins),
-                per_feature(stats.hp_del)
+                per_interval(stats.num_bases()),
+                per_interval(stats.matches),
+                per_interval(stats.mismatches),
+                per_interval(stats.non_hp_ins),
+                per_interval(stats.non_hp_del),
+                per_interval(stats.hp_ins),
+                per_interval(stats.hp_del)
             )?;
         }
         Ok(())
