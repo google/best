@@ -55,8 +55,8 @@ pub struct IdentitySummary {
     prefix: String,
     matches: usize,
     mismatches: usize,
-    ins: usize,
-    del: usize,
+    non_hp_ins: usize,
+    non_hp_del: usize,
     hp_ins: usize,
     hp_del: usize,
     gc_ins: usize,
@@ -79,8 +79,8 @@ impl IdentitySummary {
 
         self.matches += aln_stats.matches;
         self.mismatches += aln_stats.mismatches;
-        self.ins += aln_stats.non_hp_ins + aln_stats.hp_ins;
-        self.del += aln_stats.non_hp_del + aln_stats.hp_del;
+        self.non_hp_ins += aln_stats.non_hp_ins;
+        self.non_hp_del += aln_stats.non_hp_del;
         self.hp_ins += aln_stats.hp_ins;
         self.hp_del += aln_stats.hp_del;
         self.gc_ins += aln_stats.gc_ins;
@@ -91,9 +91,14 @@ impl IdentitySummary {
 
 impl fmt::Display for IdentitySummary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "prefix,identity,gap_compressed_identity,matches_per_read,mismatches_per_read,ins_per_read,del_per_read,hp_ins_per_read,hp_del_per_read")?;
-        let id =
-            (self.matches as f32) / ((self.matches + self.mismatches + self.ins + self.del) as f32);
+        writeln!(f, "prefix,identity,gap_compressed_identity,matches_per_read,mismatches_per_read,non_hp_ins_per_read,non_hp_del_per_read,hp_ins_per_read,hp_del_per_read")?;
+        let id = (self.matches as f32)
+            / ((self.matches
+                + self.mismatches
+                + self.non_hp_ins
+                + self.hp_ins
+                + self.non_hp_del
+                + self.hp_del) as f32);
         let gc_id = (self.matches as f32)
             / ((self.matches + self.mismatches + self.gc_ins + self.gc_del) as f32);
         let per_read = |x| (x as f64) / (self.num_reads as f64);
@@ -105,8 +110,8 @@ impl fmt::Display for IdentitySummary {
             gc_id,
             per_read(self.matches),
             per_read(self.mismatches),
-            per_read(self.ins),
-            per_read(self.del),
+            per_read(self.non_hp_ins),
+            per_read(self.non_hp_del),
             per_read(self.hp_ins),
             per_read(self.hp_del)
         )
