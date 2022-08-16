@@ -134,7 +134,7 @@ struct Args {
     /// Input reference FASTA file.
     reference: String,
 
-    /// Output directory with statistics.
+    /// Prefix for output files that contain statistics.
     stats_prefix: String,
 
     /// Input intervals BED file.

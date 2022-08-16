@@ -1,16 +1,16 @@
-# BAM Error Stats
-Analysis of error types in BAM files.
+# best
+Bam Error STats (BEST): analysis of error types in aligned reads.
 
 ## Development
 ### Running
 1. Install [Rust](https://www.rust-lang.org/tools/install).
 2. Run `cargo build --release`.
 3. Run `cargo run --release -- input.bam reference.fasta bam-error-stats` or
-`target/release/bam-error-stats input.bam reference.fasta bam-error-stats`.
+`target/release/best input.bam reference.fasta best`.
 
-This will generate stats files in the `bam-error-stats` directory.
+This will generate stats files with the `best` prefix.
 
-The built binary is located at `target/release/bam-error-stats`.
+The built binary is located at `target/release/best`.
 
 ### Formatting
 ```

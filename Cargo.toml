@@ -1,9 +1,9 @@
 [package]
-name = "bam-error-stats"
+name = "best"
 authors = ["Daniel Liu"]
 version = "0.1.0"
 edition = "2021"
-description = "Analysis of error types in BAM files."
+description = "Bam Error STats (BEST): analysis of error types in aligned reads."
 
 [dependencies]
 clap = { version = "^3.2", features = ["derive"] }
