@@ -46,8 +46,6 @@ pub struct FeatureStats {
     pub non_hp_del: usize,
     pub hp_ins: usize,
     pub hp_del: usize,
-    pub gc_ins: usize,
-    pub gc_del: usize,
 }
 
 impl FeatureStats {
@@ -59,8 +57,6 @@ impl FeatureStats {
         self.non_hp_del += o.non_hp_del;
         self.hp_ins += o.hp_ins;
         self.hp_del += o.hp_del;
-        self.gc_ins += o.gc_ins;
-        self.gc_del += o.gc_del;
     }
 
     pub fn num_bases(&self) -> usize {
