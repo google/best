@@ -3,8 +3,8 @@ use clap::Parser;
 use rayon::prelude::*;
 
 use noodles::bam;
-use noodles::fasta;
 use noodles::core::Position;
+use noodles::fasta;
 
 use fxhash::FxHashMap;
 
@@ -69,7 +69,9 @@ fn run(
                 return;
             }
 
-            let aln_ref = references[record.reference_sequence_id().unwrap().unwrap()].name().as_str();
+            let aln_ref = references[record.reference_sequence_id().unwrap().unwrap()]
+                .name()
+                .as_str();
             // convert to one-indexed [aln_start, aln_end)
             let aln_start = usize::from(record.alignment_start().unwrap().unwrap());
             let aln_end = aln_start + record.cigar().unwrap().alignment_span();
@@ -120,13 +122,20 @@ fn run(
     }
 }
 
-fn find_homopolymers(seq: &fasta::record::Sequence, start: usize, end: usize) -> Vec<FeatureInterval> {
+fn find_homopolymers(
+    seq: &fasta::record::Sequence,
+    start: usize,
+    end: usize,
+) -> Vec<FeatureInterval> {
     let mut res = Vec::new();
     let mut hp_len = 0;
     let mut prev = b'?';
 
     for i in start..end {
-        let curr = seq.get(Position::new(i).unwrap()).unwrap().to_ascii_uppercase();
+        let curr = seq
+            .get(Position::new(i).unwrap())
+            .unwrap()
+            .to_ascii_uppercase();
 
         if curr == prev {
             hp_len += 1;
