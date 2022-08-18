@@ -118,12 +118,12 @@ impl fmt::Display for IdentitySummary {
     }
 }
 
-pub struct FeatureSummary<'a> {
+pub struct FeatureSummary {
     prefix: String,
-    feature_stats: FxHashMap<&'a str, FeatureStats>,
+    feature_stats: FxHashMap<String, FeatureStats>,
 }
 
-impl<'a> FeatureSummary<'a> {
+impl FeatureSummary {
     pub fn new(prefix: String) -> Self {
         Self {
             prefix,
@@ -131,21 +131,21 @@ impl<'a> FeatureSummary<'a> {
         }
     }
 
-    pub fn update(&mut self, aln_stats: &AlnStats<'a>) {
+    pub fn update(&mut self, aln_stats: &AlnStats) {
         if aln_stats.supplementary {
             return;
         }
 
-        for (k, v) in &aln_stats.feature_stats {
+        for (&k, v) in &aln_stats.feature_stats {
             self.feature_stats
-                .entry(k)
+                .entry(k.to_owned())
                 .or_insert_with(|| FeatureStats::default())
                 .assign_add(v);
         }
     }
 }
 
-impl<'a> fmt::Display for FeatureSummary<'a> {
+impl fmt::Display for FeatureSummary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "prefix,feature,bases_per_interval,matches_per_interval,mismatches_per_interval,non_hp_ins_per_interval,non_hp_del_per_interval,hp_ins_per_interval,hp_del_per_interval")?;
         let mut v = self.feature_stats.iter().collect::<Vec<_>>();

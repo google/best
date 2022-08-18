@@ -4,6 +4,7 @@ use rayon::prelude::*;
 
 use noodles::bam;
 use noodles::fasta;
+use noodles::core::Position;
 
 use fxhash::FxHashMap;
 
@@ -29,6 +30,7 @@ fn run(
     reference_path: String,
     stats_prefix: String,
     intervals_path: Option<String>,
+    hp_intervals: bool,
 ) {
     // read reference sequences from fasta file
     let mut ref_reader = fasta::Reader::new(BufReader::new(File::open(reference_path).unwrap()));
@@ -61,16 +63,29 @@ fn run(
         .par_bridge()
         .map(|r| r.unwrap())
         .for_each(|record| {
-            let aln_ref = references[record.reference_sequence_id().unwrap().unwrap()]
-                .name()
-                .as_str();
+            let flags = record.flags().unwrap();
+            if flags.is_unmapped() || flags.is_secondary() {
+                // skip
+                return;
+            }
+
+            let aln_ref = references[record.reference_sequence_id().unwrap().unwrap()].name().as_str();
             // convert to one-indexed [aln_start, aln_end)
             let aln_start = usize::from(record.alignment_start().unwrap().unwrap());
             let aln_end = aln_start + record.cigar().unwrap().alignment_span();
-            let overlap_intervals = intervals
-                .as_ref()
-                .map(|i| i.find(aln_ref, aln_start, aln_end))
-                .unwrap_or_else(|| Vec::new());
+            let hp_intervals_vec = if hp_intervals {
+                find_homopolymers(reference_seqs[aln_ref].sequence(), aln_start, aln_end)
+            } else {
+                Vec::new()
+            };
+            let overlap_intervals = if hp_intervals {
+                hp_intervals_vec.iter().collect()
+            } else {
+                intervals
+                    .as_ref()
+                    .map(|i| i.find(aln_ref, aln_start, aln_end))
+                    .unwrap_or_else(|| Vec::new())
+            };
 
             let stats =
                 AlnStats::from_record(&references, &reference_seqs, &record, &overlap_intervals);
@@ -78,7 +93,7 @@ fn run(
             if let Some(stats) = stats {
                 summary_yield.lock().unwrap().update(&stats);
                 summary_identity.lock().unwrap().update(&stats);
-                if intervals.is_some() {
+                if hp_intervals || intervals.is_some() {
                     summary_features.lock().unwrap().update(&stats);
                 }
 
@@ -97,7 +112,7 @@ fn run(
     let mut summary_identity_writer = File::create(&summary_identity_path).unwrap();
     write!(summary_identity_writer, "{}", summary_identity).unwrap();
 
-    if intervals.is_some() {
+    if hp_intervals || intervals.is_some() {
         let summary_features = summary_features.into_inner().unwrap();
         let summary_features_path = format!("{}.{}", stats_prefix, FEATURE_STATS_NAME);
         let mut summary_features_writer = File::create(&summary_features_path).unwrap();
@@ -105,8 +120,47 @@ fn run(
     }
 }
 
+fn find_homopolymers(seq: &fasta::record::Sequence, start: usize, end: usize) -> Vec<FeatureInterval> {
+    let mut res = Vec::new();
+    let mut hp_len = 0;
+    let mut prev = b'?';
+
+    for i in start..end {
+        let curr = seq.get(Position::new(i).unwrap()).unwrap().to_ascii_uppercase();
+
+        if curr == prev {
+            hp_len += 1;
+        } else {
+            if hp_len > 1 {
+                res.push(FeatureInterval {
+                    start: i - hp_len,
+                    stop: i,
+                    val: format!("{:0>5}{}", hp_len, prev),
+                });
+            }
+            hp_len = 1;
+            prev = curr;
+        }
+    }
+
+    if hp_len > 1 {
+        res.push(FeatureInterval {
+            start: end - hp_len,
+            stop: end,
+            val: format!("{:0>5}{}", hp_len, prev),
+        });
+    }
+
+    res
+}
+
 fn main() {
     let args = Args::parse();
+
+    if args.hp_intervals && args.intervals.is_some() {
+        panic!("Choose to either use homopolymer regions or a BED file as the input intervals!");
+    }
+
     let start_time = Instant::now();
 
     rayon::ThreadPoolBuilder::new()
@@ -119,6 +173,7 @@ fn main() {
         args.reference,
         args.stats_prefix,
         args.intervals,
+        args.hp_intervals,
     );
 
     let duration = start_time.elapsed();
@@ -140,6 +195,10 @@ struct Args {
     /// Input intervals BED file.
     #[clap(short, long)]
     intervals: Option<String>,
+
+    /// Use homopolymer regions as intervals instead of BED file.
+    #[clap(short, long)]
+    hp_intervals: bool,
 
     /// Number of threads. Will be automatically determined if this is set to 0.
     #[clap(short, long, default_value_t = 0usize)]

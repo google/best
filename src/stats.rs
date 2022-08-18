@@ -71,15 +71,10 @@ impl<'a> AlnStats<'a> {
         r: &bam::lazy::Record,
         intervals: &[&'a FeatureInterval],
     ) -> Option<Self> {
-        let flags = r.flags().ok()?;
-        if flags.is_unmapped() || flags.is_secondary() {
-            // skip
-            return None;
-        }
-
         // note: avoid copying data (especially sequence/quality scores) since they are large
         let sequence = r.sequence().ok()?;
         let q_scores = r.quality_scores().ok()?;
+        let flags = r.flags().ok()?;
         let data = r.data().ok()?;
         let ec_tag = Tag::try_from(*b"ec").ok()?;
         let ec = data.get(ec_tag).map(|f| f.value().as_float().unwrap());
