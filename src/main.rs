@@ -80,7 +80,7 @@ fn run(
             } else {
                 Vec::new()
             };
-            let overlap_intervals = if hp_intervals {
+            let mut overlap_intervals = if hp_intervals {
                 hp_intervals_vec.iter().collect()
             } else {
                 intervals
@@ -88,6 +88,7 @@ fn run(
                     .map(|i| i.find(aln_ref, aln_start, aln_end))
                     .unwrap_or_else(|| Vec::new())
             };
+            overlap_intervals.sort();
 
             let stats =
                 AlnStats::from_record(&references, &reference_seqs, &record, &overlap_intervals);
@@ -144,7 +145,7 @@ fn find_homopolymers(
                 res.push(FeatureInterval {
                     start: i - hp_len,
                     stop: i,
-                    val: format!("{:0>5}{}", hp_len, prev),
+                    val: format!("{:0>5}{}", hp_len, prev as char),
                 });
             }
             hp_len = 1;
@@ -156,7 +157,7 @@ fn find_homopolymers(
         res.push(FeatureInterval {
             start: end - hp_len,
             stop: end,
-            val: format!("{:0>5}{}", hp_len, prev),
+            val: format!("{:0>5}{}", hp_len, prev as char),
         });
     }
 
