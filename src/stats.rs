@@ -62,6 +62,16 @@ impl FeatureStats {
     pub fn num_bases(&self) -> usize {
         self.matches + self.mismatches + self.non_hp_del + self.hp_del
     }
+
+    pub fn identity(&self) -> f32 {
+        (self.matches as f32)
+            / ((self.matches
+                + self.mismatches
+                + self.non_hp_ins
+                + self.hp_ins
+                + self.non_hp_del
+                + self.hp_del) as f32)
+    }
 }
 
 impl<'a> AlnStats<'a> {

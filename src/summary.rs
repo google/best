@@ -147,16 +147,18 @@ impl FeatureSummary {
 
 impl fmt::Display for FeatureSummary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "prefix,feature,bases_per_interval,matches_per_interval,mismatches_per_interval,non_hp_ins_per_interval,non_hp_del_per_interval,hp_ins_per_interval,hp_del_per_interval")?;
+        writeln!(f, "prefix,feature,intervals,identity,bases_per_interval,matches_per_interval,mismatches_per_interval,non_hp_ins_per_interval,non_hp_del_per_interval,hp_ins_per_interval,hp_del_per_interval")?;
         let mut v = self.feature_stats.iter().collect::<Vec<_>>();
         v.sort_by_key(|x| x.0);
         for (feature, stats) in v.into_iter() {
             let per_interval = |x| (x as f64) / (stats.overlaps as f64);
             writeln!(
                 f,
-                "{},{},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6}",
+                "{},{},{},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6}",
                 self.prefix,
                 feature,
+                stats.overlaps,
+                stats.identity(),
                 per_interval(stats.num_bases()),
                 per_interval(stats.matches),
                 per_interval(stats.mismatches),
