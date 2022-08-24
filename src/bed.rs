@@ -23,8 +23,9 @@ impl Intervals {
             let line = line.unwrap();
             let mut fields = line.split('\t');
             let chrom = fields.next().unwrap().to_owned();
-            let start = fields.next().unwrap().parse::<usize>().unwrap();
-            let stop = fields.next().unwrap().parse::<usize>().unwrap();
+            // convert to 1-indexed [start, stop)
+            let start = fields.next().unwrap().parse::<usize>().unwrap() + 1;
+            let stop = fields.next().unwrap().parse::<usize>().unwrap() + 1;
             let feature = fields.next().unwrap().to_owned();
 
             intervals
