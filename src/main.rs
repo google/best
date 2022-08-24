@@ -31,6 +31,7 @@ fn run(
     stats_prefix: String,
     intervals_path: Option<String>,
     hp_intervals: bool,
+    print_prefix: bool,
 ) {
     // read reference sequences from fasta file
     let mut ref_reader = fasta::Reader::new(BufReader::new(File::open(reference_path).unwrap()));
@@ -50,12 +51,18 @@ fn run(
     // create per alignment stats writer that is shared between threads
     let aln_stats_path = format!("{}.{}", stats_prefix, PER_ALN_STATS_NAME);
     let mut aln_stats_writer = File::create(&aln_stats_path).unwrap();
-    write!(aln_stats_writer, "prefix,{}\n", AlnStats::header()).unwrap();
+    write!(
+        aln_stats_writer,
+        "{}{}\n",
+        if print_prefix { "prefix," } else { "" },
+        AlnStats::header()
+    )
+    .unwrap();
     let aln_stats_writer = Mutex::new(aln_stats_writer);
 
-    let summary_yield = Mutex::new(YieldSummary::new(stats_prefix.clone()));
-    let summary_identity = Mutex::new(IdentitySummary::new(stats_prefix.clone()));
-    let summary_features = Mutex::new(FeatureSummary::new(stats_prefix.clone()));
+    let summary_yield = Mutex::new(YieldSummary::new(stats_prefix.clone(), print_prefix));
+    let summary_identity = Mutex::new(IdentitySummary::new(stats_prefix.clone(), print_prefix));
+    let summary_features = Mutex::new(FeatureSummary::new(stats_prefix.clone(), print_prefix));
 
     // lazily read records to shift parsing work to individual threads
     reader
@@ -101,7 +108,11 @@ fn run(
                 }
 
                 let mut writer = aln_stats_writer.lock().unwrap();
-                write!(writer, "{},{}\n", stats_prefix, stats.to_csv()).unwrap();
+                if print_prefix {
+                    write!(writer, "{},{}\n", stats_prefix, stats.to_csv()).unwrap();
+                } else {
+                    write!(writer, "{}\n", stats.to_csv()).unwrap();
+                }
             }
         });
 
@@ -184,6 +195,7 @@ fn main() {
         args.stats_prefix,
         args.intervals,
         args.hp_intervals,
+        args.print_prefix,
     );
 
     let duration = start_time.elapsed();
@@ -201,6 +213,10 @@ struct Args {
 
     /// Prefix for output files that contain statistics.
     stats_prefix: String,
+
+    /// Add column with prefix in CSV outputs.
+    #[clap(long)]
+    print_prefix: bool,
 
     /// Input intervals BED file.
     #[clap(short, long)]

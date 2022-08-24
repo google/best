@@ -6,14 +6,21 @@ use crate::stats::*;
 
 pub struct YieldSummary {
     prefix: String,
+    print_prefix: bool,
     /// (reads, bases)
     q_yield: [(usize, usize); 10],
 }
 
 impl YieldSummary {
-    pub fn new(prefix: String) -> Self {
+    pub fn new(mut prefix: String, print_prefix: bool) -> Self {
+        if print_prefix {
+            prefix.push(',');
+        } else {
+            prefix.clear();
+        }
         Self {
             prefix,
+            print_prefix,
             q_yield: [(0usize, 0usize); 10],
         }
     }
@@ -35,11 +42,15 @@ impl YieldSummary {
 
 impl fmt::Display for YieldSummary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "prefix,min_empirical_Q,yield_reads,yield_bases")?;
+        writeln!(
+            f,
+            "{}min_empirical_Q,yield_reads,yield_bases",
+            if self.print_prefix { "prefix," } else { "" }
+        )?;
         for i in 0..self.q_yield.len() {
             writeln!(
                 f,
-                "{},{},{},{}",
+                "{}{},{},{}",
                 self.prefix,
                 i * 5,
                 self.q_yield[i].0,
@@ -53,6 +64,7 @@ impl fmt::Display for YieldSummary {
 #[derive(Default)]
 pub struct IdentitySummary {
     prefix: String,
+    print_prefix: bool,
     matches: usize,
     mismatches: usize,
     non_hp_ins: usize,
@@ -65,9 +77,15 @@ pub struct IdentitySummary {
 }
 
 impl IdentitySummary {
-    pub fn new(prefix: String) -> Self {
+    pub fn new(mut prefix: String, print_prefix: bool) -> Self {
+        if print_prefix {
+            prefix.push(',');
+        } else {
+            prefix.clear();
+        }
         Self {
             prefix,
+            print_prefix,
             ..Default::default()
         }
     }
@@ -91,7 +109,7 @@ impl IdentitySummary {
 
 impl fmt::Display for IdentitySummary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "prefix,identity,qv,gap_compressed_identity,matches_per_read,mismatches_per_read,non_hp_ins_per_read,non_hp_del_per_read,hp_ins_per_read,hp_del_per_read")?;
+        writeln!(f, "{}identity,qv,gap_compressed_identity,matches_per_read,mismatches_per_read,non_hp_ins_per_read,non_hp_del_per_read,hp_ins_per_read,hp_del_per_read", if self.print_prefix { "prefix," } else { "" })?;
         let num_errors =
             self.mismatches + self.non_hp_ins + self.hp_ins + self.non_hp_del + self.hp_del;
         let id = (self.matches as f32) / ((self.matches + num_errors) as f32);
@@ -100,7 +118,7 @@ impl fmt::Display for IdentitySummary {
         let per_read = |x| (x as f64) / (self.num_reads as f64);
         writeln!(
             f,
-            "{},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6}",
+            "{}{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6}",
             self.prefix,
             id,
             concordance_qv(id, num_errors > 0),
@@ -117,13 +135,20 @@ impl fmt::Display for IdentitySummary {
 
 pub struct FeatureSummary {
     prefix: String,
+    print_prefix: bool,
     feature_stats: FxHashMap<String, FeatureStats>,
 }
 
 impl FeatureSummary {
-    pub fn new(prefix: String) -> Self {
+    pub fn new(mut prefix: String, print_prefix: bool) -> Self {
+        if print_prefix {
+            prefix.push(',');
+        } else {
+            prefix.clear();
+        }
         Self {
             prefix,
+            print_prefix,
             feature_stats: FxHashMap::default(),
         }
     }
@@ -144,7 +169,7 @@ impl FeatureSummary {
 
 impl fmt::Display for FeatureSummary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "prefix,feature,intervals,identity,qv,bases_per_interval,matches_per_interval,mismatches_per_interval,non_hp_ins_per_interval,non_hp_del_per_interval,hp_ins_per_interval,hp_del_per_interval")?;
+        writeln!(f, "{}feature,intervals,identity,qv,bases_per_interval,matches_per_interval,mismatches_per_interval,non_hp_ins_per_interval,non_hp_del_per_interval,hp_ins_per_interval,hp_del_per_interval", if self.print_prefix { "prefix," } else { "" })?;
         let mut v = self.feature_stats.iter().collect::<Vec<_>>();
         v.sort_by_key(|x| x.0);
         for (feature, stats) in v.into_iter() {
@@ -152,7 +177,7 @@ impl fmt::Display for FeatureSummary {
             let id = stats.identity();
             writeln!(
                 f,
-                "{},{},{},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6}",
+                "{}{},{},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6}",
                 self.prefix,
                 feature,
                 stats.overlaps,
