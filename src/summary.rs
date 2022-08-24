@@ -91,22 +91,23 @@ impl IdentitySummary {
 
 impl fmt::Display for IdentitySummary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "prefix,identity,gap_compressed_identity,matches_per_read,mismatches_per_read,non_hp_ins_per_read,non_hp_del_per_read,hp_ins_per_read,hp_del_per_read")?;
-        let id = (self.matches as f32)
-            / ((self.matches
-                + self.mismatches
+        writeln!(f, "prefix,identity,qv,gap_compressed_identity,matches_per_read,mismatches_per_read,non_hp_ins_per_read,non_hp_del_per_read,hp_ins_per_read,hp_del_per_read")?;
+        let num_errors = self.mismatches
                 + self.non_hp_ins
                 + self.hp_ins
                 + self.non_hp_del
-                + self.hp_del) as f32);
+                + self.hp_del;
+        let id = (self.matches as f32)
+            / ((self.matches + num_errors) as f32);
         let gc_id = (self.matches as f32)
             / ((self.matches + self.mismatches + self.gc_ins + self.gc_del) as f32);
         let per_read = |x| (x as f64) / (self.num_reads as f64);
         writeln!(
             f,
-            "{},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6}",
+            "{},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6}",
             self.prefix,
             id,
+            concordance_qv(id, num_errors > 0),
             gc_id,
             per_read(self.matches),
             per_read(self.mismatches),
@@ -147,18 +148,20 @@ impl FeatureSummary {
 
 impl fmt::Display for FeatureSummary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "prefix,feature,intervals,identity,bases_per_interval,matches_per_interval,mismatches_per_interval,non_hp_ins_per_interval,non_hp_del_per_interval,hp_ins_per_interval,hp_del_per_interval")?;
+        writeln!(f, "prefix,feature,intervals,identity,qv,bases_per_interval,matches_per_interval,mismatches_per_interval,non_hp_ins_per_interval,non_hp_del_per_interval,hp_ins_per_interval,hp_del_per_interval")?;
         let mut v = self.feature_stats.iter().collect::<Vec<_>>();
         v.sort_by_key(|x| x.0);
         for (feature, stats) in v.into_iter() {
             let per_interval = |x| (x as f64) / (stats.overlaps as f64);
+            let id = stats.identity();
             writeln!(
                 f,
-                "{},{},{},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6}",
+                "{},{},{},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6}",
                 self.prefix,
                 feature,
                 stats.overlaps,
-                stats.identity(),
+                id,
+                concordance_qv(id, id != 1.0),
                 per_interval(stats.num_bases()),
                 per_interval(stats.matches),
                 per_interval(stats.mismatches),

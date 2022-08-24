@@ -298,7 +298,7 @@ impl<'a> AlnStats<'a> {
     }
 }
 
-fn concordance_qv(concordance: f32, has_errors: bool) -> f32 {
+pub fn concordance_qv(concordance: f32, has_errors: bool) -> f32 {
     if has_errors {
         -10.0f32 * (1.0f32 - concordance).log10()
     } else {
