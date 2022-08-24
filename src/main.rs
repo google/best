@@ -145,7 +145,7 @@ fn find_homopolymers(
                 res.push(FeatureInterval {
                     start: i - hp_len,
                     stop: i,
-                    val: format!("{:0>5}{}", hp_len, prev as char),
+                    val: format!("{: >5}{}", hp_len, prev as char),
                 });
             }
             hp_len = 1;
@@ -157,7 +157,7 @@ fn find_homopolymers(
         res.push(FeatureInterval {
             start: end - hp_len,
             stop: end,
-            val: format!("{:0>5}{}", hp_len, prev as char),
+            val: format!("{: >5}{}", hp_len, prev as char),
         });
     }
 
