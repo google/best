@@ -22,6 +22,7 @@ pub struct AlnStats<'a> {
     mapq: u8,
     mean_qual: u8,
     pub read_len: usize,
+    pub gc_content: f32,
     pub concordance: f32,
     pub concordance_gc: f32,
     pub concordance_qv: f32,
@@ -106,6 +107,7 @@ impl<'a> AlnStats<'a> {
             mean_qual: mean_qual(q_scores.as_ref()),
             // fill in the rest afterwards
             read_len: 0,
+            gc_content: 0.0,
             concordance: 0.0,
             concordance_gc: 0.0,
             concordance_qv: 0.0,
@@ -159,6 +161,10 @@ impl<'a> AlnStats<'a> {
                         if in_interval {
                             curr_feature.unwrap().matches += 1;
                         }
+                        let c = curr_ref_seq[Position::new(ref_pos)?].to_ascii_uppercase();
+                        if c == b'C' || c == b'G' {
+                            res.gc_content += 1.0;
+                        }
                         query_pos += 1;
                         ref_pos += 1;
                     }
@@ -166,6 +172,10 @@ impl<'a> AlnStats<'a> {
                         res.mismatches += 1;
                         if in_interval {
                             curr_feature.unwrap().mismatches += 1;
+                        }
+                        let c = curr_ref_seq[Position::new(ref_pos)?].to_ascii_uppercase();
+                        if c == b'C' || c == b'G' {
+                            res.gc_content += 1.0;
                         }
                         query_pos += 1;
                         ref_pos += 1;
@@ -212,6 +222,9 @@ impl<'a> AlnStats<'a> {
                             .unwrap_or(&b'?')
                             .to_ascii_uppercase();
                         let curr = curr_ref_seq[Position::new(ref_pos)?].to_ascii_uppercase();
+                        if curr == b'C' || curr == b'G' {
+                            res.gc_content += 1.0;
+                        }
                         let hp = curr == before_curr || curr == after_curr;
                         if hp {
                             res.hp_del += 1;
@@ -245,6 +258,7 @@ impl<'a> AlnStats<'a> {
 
         let errors = res.mismatches + res.non_hp_ins + res.non_hp_del + res.hp_ins + res.hp_del;
         res.read_len = res.matches + res.mismatches + res.non_hp_del + res.hp_del;
+        res.gc_content /= res.read_len as f32;
         res.concordance = (res.matches as f32) / ((res.matches + errors) as f32);
         res.concordance_gc = (res.matches as f32)
             / ((res.matches + res.mismatches + res.gc_ins + res.gc_del) as f32);
@@ -254,7 +268,7 @@ impl<'a> AlnStats<'a> {
     }
 
     pub fn header() -> &'static str {
-        "read,readLengthBp,effectiveCoverage,subreadPasses,predictedConcordance,alignmentType,alignmentMapq,meanQuality,hcReadLengthBp,concordance,concordanceGc,concordanceQv,mismatchBp,nonHpInsertionBp,nonHpDeletionBp,hpInsertionBp,hpDeletionBp"
+        "read,readLengthBp,effectiveCoverage,subreadPasses,predictedConcordance,alignmentType,alignmentMapq,meanQuality,hcReadLengthBp,gcContent,concordance,concordanceGc,concordanceQv,mismatchBp,nonHpInsertionBp,nonHpDeletionBp,hpInsertionBp,hpDeletionBp"
     }
 
     pub fn to_csv(&self) -> String {
@@ -276,7 +290,7 @@ impl<'a> AlnStats<'a> {
             .map(|x| format!("{:.6}", x))
             .unwrap_or_else(|| String::new());
         format!(
-            "{},{},{:.2},{},{:.6},{},{},{},{},{:.6},{:.6},{:.2},{},{},{},{},{}",
+            "{},{},{:.2},{},{:.6},{},{},{},{},{:.6},{:.6},{:.6},{:.2},{},{},{},{},{}",
             self.read_name,
             self.q_len,
             ec,
@@ -286,6 +300,7 @@ impl<'a> AlnStats<'a> {
             self.mapq,
             self.mean_qual,
             self.read_len,
+            self.gc_content,
             self.concordance,
             self.concordance_gc,
             self.concordance_qv,
