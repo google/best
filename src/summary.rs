@@ -44,7 +44,7 @@ impl fmt::Display for YieldSummary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
             f,
-            "{}min_empirical_Q,yield_reads,yield_bases",
+            "{}min_empirical_q,yield_reads,yield_bases",
             if self.print_prefix { "prefix," } else { "" }
         )?;
         for i in 0..self.q_yield.len() {
@@ -109,7 +109,7 @@ impl IdentitySummary {
 
 impl fmt::Display for IdentitySummary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "{}identity,qv,gap_compressed_identity,matches_per_read,mismatches_per_read,non_hp_ins_per_read,non_hp_del_per_read,hp_ins_per_read,hp_del_per_read", if self.print_prefix { "prefix," } else { "" })?;
+        writeln!(f, "{}identity,identity_qv,gap_compressed_identity,matches_per_read,mismatches_per_read,non_hp_ins_per_read,non_hp_del_per_read,hp_ins_per_read,hp_del_per_read", if self.print_prefix { "prefix," } else { "" })?;
         let num_errors =
             self.mismatches + self.non_hp_ins + self.hp_ins + self.non_hp_del + self.hp_del;
         let id = (self.matches as f32) / ((self.matches + num_errors) as f32);
@@ -169,7 +169,7 @@ impl FeatureSummary {
 
 impl fmt::Display for FeatureSummary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "{}feature,intervals,identity,qv,bases_per_interval,matches_per_interval,mismatches_per_interval,non_hp_ins_per_interval,non_hp_del_per_interval,hp_ins_per_interval,hp_del_per_interval", if self.print_prefix { "prefix," } else { "" })?;
+        writeln!(f, "{}feature,intervals,identity,identity_qv,bases_per_interval,matches_per_interval,mismatches_per_interval,non_hp_ins_per_interval,non_hp_del_per_interval,hp_ins_per_interval,hp_del_per_interval", if self.print_prefix { "prefix," } else { "" })?;
         let mut v = self.feature_stats.iter().collect::<Vec<_>>();
         v.sort_by_key(|x| x.0);
         for (feature, stats) in v.into_iter() {

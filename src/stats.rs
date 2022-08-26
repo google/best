@@ -268,14 +268,14 @@ impl<'a> AlnStats<'a> {
     }
 
     pub fn header() -> &'static str {
-        "read,readLengthBp,effectiveCoverage,subreadPasses,predictedConcordance,alignmentType,alignmentMapq,meanQuality,hcReadLengthBp,gcContent,concordance,concordanceGc,concordanceQv,mismatchBp,nonHpInsertionBp,nonHpDeletionBp,hpInsertionBp,hpDeletionBp"
+        "read,read_length,effective_coverage,subread_passes,predicted_concordance,alignment_type,alignment_mapq,mean_quality,aligned_read_length,gc_content,concordance,gap_compressed_concordance,concordance_qv,mismatches,non_hp_ins,non_hp_del,hp_ins,hp_del"
     }
 
     pub fn to_csv(&self) -> String {
         let supp_str = if self.supplementary {
-            "Supplementary"
+            "supplementary"
         } else {
-            "Primary"
+            "primary"
         };
         let ec = self
             .effective_cov
