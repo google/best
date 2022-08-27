@@ -122,6 +122,7 @@ impl<'a> AlnStats<'a> {
             feature_stats: FxHashMap::default(),
         };
 
+        let mut interval_has_error = vec![false; intervals.len()];
         for i in intervals {
             res.feature_stats
                 .entry(&i.val)
@@ -172,6 +173,7 @@ impl<'a> AlnStats<'a> {
                         res.mismatches += 1;
                         if in_interval {
                             curr_feature.unwrap().mismatches += 1;
+                            interval_has_error[interval_idx] = true;
                         }
                         let c = curr_ref_seq[Position::new(ref_pos)?].to_ascii_uppercase();
                         if c == b'C' || c == b'G' {
@@ -202,11 +204,13 @@ impl<'a> AlnStats<'a> {
                             res.hp_ins += op.len();
                             if in_interval {
                                 curr_feature.unwrap().hp_ins += op.len();
+                                interval_has_error[interval_idx] = true;
                             }
                         } else {
                             res.non_hp_ins += op.len();
                             if in_interval {
                                 curr_feature.unwrap().non_hp_ins += op.len();
+                                interval_has_error[interval_idx] = true;
                             }
                         }
                         query_pos += op.len();
@@ -230,11 +234,13 @@ impl<'a> AlnStats<'a> {
                             res.hp_del += 1;
                             if in_interval {
                                 curr_feature.unwrap().hp_del += 1;
+                                interval_has_error[interval_idx] = true;
                             }
                         } else {
                             res.non_hp_del += 1;
                             if in_interval {
                                 curr_feature.unwrap().non_hp_del += 1;
+                                interval_has_error[interval_idx] = true;
                             }
                         }
                         ref_pos += 1;
@@ -264,10 +270,9 @@ impl<'a> AlnStats<'a> {
             / ((res.matches + res.mismatches + res.gc_ins + res.gc_del) as f32);
         res.concordance_qv = concordance_qv(res.concordance, errors > 0);
 
-        for i in intervals {
-            let s = res.feature_stats.get_mut(i.val.as_str()).unwrap();
-            if s.num_errors() == 0 {
-                s.identical_overlaps = 1;
+        for (i, &has_error) in intervals.iter().zip(&interval_has_error) {
+            if !has_error {
+                res.feature_stats.get_mut(i.val.as_str()).unwrap().identical_overlaps += 1;
             }
         }
 
