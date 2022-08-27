@@ -41,6 +41,7 @@ pub struct AlnStats<'a> {
 #[derive(Debug, Default)]
 pub struct FeatureStats {
     pub overlaps: usize,
+    pub identical_overlaps: usize,
     pub matches: usize,
     pub mismatches: usize,
     pub non_hp_ins: usize,
@@ -52,6 +53,7 @@ pub struct FeatureStats {
 impl FeatureStats {
     pub fn assign_add(&mut self, o: &Self) {
         self.overlaps += o.overlaps;
+        self.identical_overlaps += o.identical_overlaps;
         self.matches += o.matches;
         self.mismatches += o.mismatches;
         self.non_hp_ins += o.non_hp_ins;
@@ -64,14 +66,12 @@ impl FeatureStats {
         self.matches + self.mismatches + self.non_hp_del + self.hp_del
     }
 
+    pub fn num_errors(&self) -> usize {
+        self.mismatches + self.non_hp_ins + self.hp_ins + self.non_hp_del + self.hp_del
+    }
+
     pub fn identity(&self) -> f32 {
-        (self.matches as f32)
-            / ((self.matches
-                + self.mismatches
-                + self.non_hp_ins
-                + self.hp_ins
-                + self.non_hp_del
-                + self.hp_del) as f32)
+        (self.matches as f32) / ((self.matches + self.num_errors()) as f32)
     }
 }
 
@@ -263,6 +263,13 @@ impl<'a> AlnStats<'a> {
         res.concordance_gc = (res.matches as f32)
             / ((res.matches + res.mismatches + res.gc_ins + res.gc_del) as f32);
         res.concordance_qv = concordance_qv(res.concordance, errors > 0);
+
+        for i in intervals {
+            let s = res.feature_stats.get_mut(i.val.as_str()).unwrap();
+            if s.num_errors() == 0 {
+                s.identical_overlaps = 1;
+            }
+        }
 
         Some(res)
     }

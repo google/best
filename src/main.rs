@@ -3,7 +3,6 @@ use clap::Parser;
 use rayon::prelude::*;
 
 use noodles::bam;
-use noodles::core::Position;
 use noodles::fasta;
 
 use fxhash::FxHashMap;
@@ -19,6 +18,8 @@ mod summary;
 use summary::*;
 mod bed;
 use bed::*;
+mod intervals;
+use intervals::*;
 
 const PER_ALN_STATS_NAME: &str = "per_aln_stats.csv";
 const YIELD_STATS_NAME: &str = "summary_yield_stats.csv";
@@ -29,8 +30,7 @@ fn run(
     input_path: String,
     reference_path: String,
     stats_prefix: String,
-    intervals_path: Option<String>,
-    hp_intervals: bool,
+    intervals_type: IntervalsType,
     print_prefix: bool,
 ) {
     // read reference sequences from fasta file
@@ -46,7 +46,10 @@ fn run(
     reader.read_header().unwrap();
     let references = reader.read_reference_sequences().unwrap();
 
-    let intervals = intervals_path.map(|p| Intervals::new(&p));
+    let mut intervals = None;
+    if let IntervalsType::Bed(ref path) = intervals_type {
+        intervals = Some(Intervals::new(&path));
+    }
 
     // create per alignment stats writer that is shared between threads
     let aln_stats_path = format!("{}.{}", stats_prefix, PER_ALN_STATS_NAME);
@@ -82,18 +85,20 @@ fn run(
             // convert to one-indexed [aln_start, aln_end)
             let aln_start = usize::from(record.alignment_start().unwrap().unwrap());
             let aln_end = aln_start + record.cigar().unwrap().alignment_span();
-            let hp_intervals_vec = if hp_intervals {
-                find_homopolymers(reference_seqs[aln_ref].sequence(), aln_start, aln_end)
-            } else {
-                Vec::new()
+            let intervals_vec = match intervals_type {
+                IntervalsType::Homopolymer => {
+                    find_homopolymers(reference_seqs[aln_ref].sequence(), aln_start, aln_end)
+                }
+                IntervalsType::Window(win_len) => get_windows(aln_start, aln_end, win_len),
+                IntervalsType::Border(win_len) => get_borders(aln_start, aln_end, win_len),
+                _ => Vec::new(),
             };
-            let mut overlap_intervals = if hp_intervals {
-                hp_intervals_vec.iter().collect()
-            } else {
-                intervals
+            let mut overlap_intervals = match intervals_type {
+                IntervalsType::Bed(_) => intervals
                     .as_ref()
-                    .map(|i| i.find(aln_ref, aln_start, aln_end))
-                    .unwrap_or_else(|| Vec::new())
+                    .unwrap()
+                    .find(aln_ref, aln_start, aln_end),
+                _ => intervals_vec.iter().collect(),
             };
             overlap_intervals.sort();
 
@@ -103,7 +108,7 @@ fn run(
             if let Some(stats) = stats {
                 summary_yield.lock().unwrap().update(&stats);
                 summary_identity.lock().unwrap().update(&stats);
-                if hp_intervals || intervals.is_some() {
+                if intervals_type != IntervalsType::None {
                     summary_features.lock().unwrap().update(&stats);
                 }
 
@@ -126,7 +131,7 @@ fn run(
     let mut summary_identity_writer = File::create(&summary_identity_path).unwrap();
     write!(summary_identity_writer, "{}", summary_identity).unwrap();
 
-    if hp_intervals || intervals.is_some() {
+    if intervals_type != IntervalsType::None {
         let summary_features = summary_features.into_inner().unwrap();
         let summary_features_path = format!("{}.{}", stats_prefix, FEATURE_STATS_NAME);
         let mut summary_features_writer = File::create(&summary_features_path).unwrap();
@@ -134,55 +139,33 @@ fn run(
     }
 }
 
-fn find_homopolymers(
-    seq: &fasta::record::Sequence,
-    start: usize,
-    end: usize,
-) -> Vec<FeatureInterval> {
-    let mut res = Vec::new();
-    let mut hp_len = 0;
-    let mut prev = b'?';
-
-    for i in start..end {
-        let curr = seq
-            .get(Position::new(i).unwrap())
-            .unwrap()
-            .to_ascii_uppercase();
-
-        if curr == prev {
-            hp_len += 1;
-        } else {
-            if hp_len > 1 {
-                res.push(FeatureInterval {
-                    start: i - hp_len,
-                    stop: i,
-                    val: format!("{: >5}{}", hp_len, prev as char),
-                });
-            }
-            hp_len = 1;
-            prev = curr;
-        }
-    }
-
-    if hp_len > 1 {
-        res.push(FeatureInterval {
-            start: end - hp_len,
-            stop: end,
-            val: format!("{: >5}{}", hp_len, prev as char),
-        });
-    }
-
-    res
-}
-
 fn main() {
     let args = Args::parse();
+    let start_time = Instant::now();
 
-    if args.hp_intervals && args.intervals.is_some() {
-        panic!("Choose to either use homopolymer regions or a BED file as the input intervals!");
+    let interval_features = [
+        args.hp_intervals,
+        args.intervals.is_some(),
+        args.window_intervals.is_some(),
+        args.border_intervals.is_some(),
+    ];
+    if interval_features.into_iter().filter(|&x| x).count() > 1 {
+        panic!("Only one of the interval specifiers can be used!");
     }
 
-    let start_time = Instant::now();
+    let mut intervals_type = IntervalsType::None;
+    if args.hp_intervals {
+        intervals_type = IntervalsType::Homopolymer;
+    }
+    if let Some(path) = args.intervals {
+        intervals_type = IntervalsType::Bed(path.clone());
+    }
+    if let Some(win_len) = args.window_intervals {
+        intervals_type = IntervalsType::Window(win_len);
+    }
+    if let Some(win_len) = args.border_intervals {
+        intervals_type = IntervalsType::Border(win_len);
+    }
 
     rayon::ThreadPoolBuilder::new()
         .num_threads(args.threads)
@@ -193,13 +176,21 @@ fn main() {
         args.input,
         args.reference,
         args.stats_prefix,
-        args.intervals,
-        args.hp_intervals,
+        intervals_type,
         args.print_prefix,
     );
 
     let duration = start_time.elapsed();
     println!("Run time (s): {}", duration.as_secs());
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum IntervalsType {
+    Bed(String),
+    Homopolymer,
+    Window(usize),
+    Border(usize),
+    None,
 }
 
 #[derive(Parser)]
@@ -225,6 +216,14 @@ struct Args {
     /// Use homopolymer regions as intervals instead of BED file.
     #[clap(short, long)]
     hp_intervals: bool,
+
+    /// Use fixed-width windows as intervals instead of BED file.
+    #[clap(short, long)]
+    window_intervals: Option<usize>,
+
+    /// Use fixed-width window border regions as intervals instead of BED file.
+    #[clap(short, long)]
+    border_intervals: Option<usize>,
 
     /// Number of threads. Will be automatically determined if this is set to 0.
     #[clap(short, long, default_value_t = 0usize)]
