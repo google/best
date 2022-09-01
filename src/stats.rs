@@ -272,7 +272,10 @@ impl<'a> AlnStats<'a> {
 
         for (i, &has_error) in intervals.iter().zip(&interval_has_error) {
             if !has_error {
-                res.feature_stats.get_mut(i.val.as_str()).unwrap().identical_overlaps += 1;
+                res.feature_stats
+                    .get_mut(i.val.as_str())
+                    .unwrap()
+                    .identical_overlaps += 1;
             }
         }
 

@@ -31,7 +31,7 @@ fn run(
     reference_path: String,
     stats_prefix: String,
     intervals_type: IntervalsType,
-    print_prefix: bool,
+    name_column: Option<String>,
 ) {
     // read reference sequences from fasta file
     let mut ref_reader = fasta::Reader::new(BufReader::new(File::open(reference_path).unwrap()));
@@ -57,15 +57,15 @@ fn run(
     write!(
         aln_stats_writer,
         "{}{}\n",
-        if print_prefix { "prefix," } else { "" },
+        if name_column.is_some() { "name," } else { "" },
         AlnStats::header()
     )
     .unwrap();
     let aln_stats_writer = Mutex::new(aln_stats_writer);
 
-    let summary_yield = Mutex::new(YieldSummary::new(stats_prefix.clone(), print_prefix));
-    let summary_identity = Mutex::new(IdentitySummary::new(stats_prefix.clone(), print_prefix));
-    let summary_features = Mutex::new(FeatureSummary::new(stats_prefix.clone(), print_prefix));
+    let summary_yield = Mutex::new(YieldSummary::new(name_column.clone()));
+    let summary_identity = Mutex::new(IdentitySummary::new(name_column.clone()));
+    let summary_features = Mutex::new(FeatureSummary::new(name_column.clone()));
 
     // lazily read records to shift parsing work to individual threads
     reader
@@ -113,8 +113,8 @@ fn run(
                 }
 
                 let mut writer = aln_stats_writer.lock().unwrap();
-                if print_prefix {
-                    write!(writer, "{},{}\n", stats_prefix, stats.to_csv()).unwrap();
+                if let Some(ref name) = name_column {
+                    write!(writer, "{},{}\n", name, stats.to_csv()).unwrap();
                 } else {
                     write!(writer, "{}\n", stats.to_csv()).unwrap();
                 }
@@ -140,8 +140,8 @@ fn run(
 }
 
 fn main() {
-    let args = Args::parse();
     let start_time = Instant::now();
+    let args = Args::parse();
 
     let interval_features = [
         args.hp_intervals,
@@ -177,7 +177,7 @@ fn main() {
         args.reference,
         args.stats_prefix,
         intervals_type,
-        args.print_prefix,
+        args.name_column,
     );
 
     let duration = start_time.elapsed();
@@ -205,9 +205,9 @@ struct Args {
     /// Prefix for output files that contain statistics.
     stats_prefix: String,
 
-    /// Add column with prefix in CSV outputs.
-    #[clap(long)]
-    print_prefix: bool,
+    /// Add column with a specific name in CSV outputs.
+    #[clap(short, long)]
+    name_column: Option<String>,
 
     /// Input intervals BED file.
     #[clap(short, long)]

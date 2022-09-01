@@ -5,22 +5,18 @@ use fxhash::FxHashMap;
 use crate::stats::*;
 
 pub struct YieldSummary {
-    prefix: String,
-    print_prefix: bool,
+    name_column: Option<String>,
     /// (reads, bases)
     q_yield: [(usize, usize); 10],
 }
 
 impl YieldSummary {
-    pub fn new(mut prefix: String, print_prefix: bool) -> Self {
-        if print_prefix {
-            prefix.push(',');
-        } else {
-            prefix.clear();
+    pub fn new(mut name_column: Option<String>) -> Self {
+        if let Some(ref mut name) = name_column {
+            name.push(',');
         }
         Self {
-            prefix,
-            print_prefix,
+            name_column,
             q_yield: [(0usize, 0usize); 10],
         }
     }
@@ -45,13 +41,17 @@ impl fmt::Display for YieldSummary {
         writeln!(
             f,
             "{}min_empirical_q,yield_reads,yield_bases",
-            if self.print_prefix { "prefix," } else { "" }
+            if self.name_column.is_some() {
+                "name,"
+            } else {
+                ""
+            }
         )?;
         for i in 0..self.q_yield.len() {
             writeln!(
                 f,
                 "{}{},{},{}",
-                self.prefix,
+                self.name_column.as_ref().map(|n| n.as_str()).unwrap_or(""),
                 i * 5,
                 self.q_yield[i].0,
                 self.q_yield[i].1
@@ -63,8 +63,7 @@ impl fmt::Display for YieldSummary {
 
 #[derive(Default)]
 pub struct IdentitySummary {
-    prefix: String,
-    print_prefix: bool,
+    name_column: Option<String>,
     matches: usize,
     mismatches: usize,
     non_hp_ins: usize,
@@ -77,15 +76,12 @@ pub struct IdentitySummary {
 }
 
 impl IdentitySummary {
-    pub fn new(mut prefix: String, print_prefix: bool) -> Self {
-        if print_prefix {
-            prefix.push(',');
-        } else {
-            prefix.clear();
+    pub fn new(mut name_column: Option<String>) -> Self {
+        if let Some(ref mut name) = name_column {
+            name.push(',');
         }
         Self {
-            prefix,
-            print_prefix,
+            name_column,
             ..Default::default()
         }
     }
@@ -109,7 +105,7 @@ impl IdentitySummary {
 
 impl fmt::Display for IdentitySummary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "{}identity,identity_qv,gap_compressed_identity,matches_per_read,mismatches_per_read,non_hp_ins_per_read,non_hp_del_per_read,hp_ins_per_read,hp_del_per_read", if self.print_prefix { "prefix," } else { "" })?;
+        writeln!(f, "{}identity,identity_qv,gap_compressed_identity,matches_per_read,mismatches_per_read,non_hp_ins_per_read,non_hp_del_per_read,hp_ins_per_read,hp_del_per_read", if self.name_column.is_some() { "name," } else { "" })?;
         let num_errors =
             self.mismatches + self.non_hp_ins + self.hp_ins + self.non_hp_del + self.hp_del;
         let id = (self.matches as f32) / ((self.matches + num_errors) as f32);
@@ -119,7 +115,7 @@ impl fmt::Display for IdentitySummary {
         writeln!(
             f,
             "{}{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6}",
-            self.prefix,
+            self.name_column.as_ref().map(|n| n.as_str()).unwrap_or(""),
             id,
             concordance_qv(id, num_errors > 0),
             gc_id,
@@ -134,21 +130,17 @@ impl fmt::Display for IdentitySummary {
 }
 
 pub struct FeatureSummary {
-    prefix: String,
-    print_prefix: bool,
+    name_column: Option<String>,
     feature_stats: FxHashMap<String, FeatureStats>,
 }
 
 impl FeatureSummary {
-    pub fn new(mut prefix: String, print_prefix: bool) -> Self {
-        if print_prefix {
-            prefix.push(',');
-        } else {
-            prefix.clear();
+    pub fn new(mut name_column: Option<String>) -> Self {
+        if let Some(ref mut name) = name_column {
+            name.push(',');
         }
         Self {
-            prefix,
-            print_prefix,
+            name_column,
             feature_stats: FxHashMap::default(),
         }
     }
@@ -169,7 +161,7 @@ impl FeatureSummary {
 
 impl fmt::Display for FeatureSummary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "{}feature,intervals,identical_intervals,identity,identity_qv,bases_per_interval,matches_per_interval,mismatches_per_interval,non_hp_ins_per_interval,non_hp_del_per_interval,hp_ins_per_interval,hp_del_per_interval", if self.print_prefix { "prefix," } else { "" })?;
+        writeln!(f, "{}feature,intervals,identical_intervals,identity,identity_qv,bases_per_interval,matches_per_interval,mismatches_per_interval,non_hp_ins_per_interval,non_hp_del_per_interval,hp_ins_per_interval,hp_del_per_interval", if self.name_column.is_some() { "name," } else { "" })?;
         let mut v = self.feature_stats.iter().collect::<Vec<_>>();
         v.sort_by_key(|x| x.0);
         for (feature, stats) in v.into_iter() {
@@ -178,7 +170,7 @@ impl fmt::Display for FeatureSummary {
             writeln!(
                 f,
                 "{}{},{},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6}",
-                self.prefix,
+                self.name_column.as_ref().map(|n| n.as_str()).unwrap_or(""),
                 feature,
                 stats.overlaps,
                 per_interval(stats.identical_overlaps),
