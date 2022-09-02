@@ -96,8 +96,8 @@ pub fn get_matches(
                     stop: i + s.len(),
                     val: s.to_owned(),
                 });
-                i += s.len();
-                continue;
+                i += s.len() - 1;
+                break;
             }
         }
         i += 1;
