@@ -91,6 +91,9 @@ fn run(
                 }
                 IntervalsType::Window(win_len) => get_windows(aln_start, aln_end, win_len),
                 IntervalsType::Border(win_len) => get_borders(aln_start, aln_end, win_len),
+                IntervalsType::Match(ref seqs) => {
+                    get_matches(reference_seqs[aln_ref].sequence(), aln_start, aln_end, seqs)
+                }
                 _ => Vec::new(),
             };
             let mut overlap_intervals = match intervals_type {
@@ -148,6 +151,7 @@ fn main() {
         args.intervals.is_some(),
         args.window_intervals.is_some(),
         args.border_intervals.is_some(),
+        args.match_intervals.is_some(),
     ];
     if interval_features.into_iter().filter(|&x| x).count() > 1 {
         panic!("Only one of the interval specifiers can be used!");
@@ -165,6 +169,10 @@ fn main() {
     }
     if let Some(win_len) = args.border_intervals {
         intervals_type = IntervalsType::Border(win_len);
+    }
+    if let Some(mut seqs) = args.match_intervals {
+        seqs.iter_mut().for_each(|s| s.make_ascii_uppercase());
+        intervals_type = IntervalsType::Match(seqs);
     }
 
     rayon::ThreadPoolBuilder::new()
@@ -190,6 +198,7 @@ enum IntervalsType {
     Homopolymer,
     Window(usize),
     Border(usize),
+    Match(Vec<String>),
     None,
 }
 
@@ -224,6 +233,10 @@ struct Args {
     /// Use fixed-width window border regions as intervals instead of BED file.
     #[clap(short, long)]
     border_intervals: Option<usize>,
+
+    /// Use regions that match any of the subsequences as intervals instead of BED file.
+    #[clap(short, long, min_values = 1)]
+    match_intervals: Option<Vec<String>>,
 
     /// Number of threads. Will be automatically determined if this is set to 0.
     #[clap(short, long, default_value_t = 0usize)]
