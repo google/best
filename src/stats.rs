@@ -19,6 +19,7 @@ pub struct AlnStats<'a> {
     subread_passes: Option<usize>,
     pred_concordance: Option<f32>,
     pub supplementary: bool,
+    strand_rev: bool,
     mapq: u8,
     mean_qual: u8,
     pub read_len: usize,
@@ -103,6 +104,7 @@ impl<'a> AlnStats<'a> {
             subread_passes: np,
             pred_concordance: rq,
             supplementary: flags.is_supplementary(),
+            strand_rev: flags.is_reverse_complemented(),
             mapq: u8::from(r.mapping_quality().ok()??),
             mean_qual: mean_qual(q_scores.as_ref()),
             // fill in the rest afterwards
@@ -283,7 +285,7 @@ impl<'a> AlnStats<'a> {
     }
 
     pub fn header() -> &'static str {
-        "read,read_length,effective_coverage,subread_passes,predicted_concordance,alignment_type,alignment_mapq,mean_quality,aligned_read_length,gc_content,concordance,gap_compressed_concordance,concordance_qv,mismatches,non_hp_ins,non_hp_del,hp_ins,hp_del"
+        "read,read_length,effective_coverage,subread_passes,predicted_concordance,alignment_type,strand,alignment_mapq,mean_quality,aligned_read_length,gc_content,concordance,gap_compressed_concordance,concordance_qv,mismatches,non_hp_ins,non_hp_del,hp_ins,hp_del"
     }
 
     pub fn to_csv(&self) -> String {
@@ -292,6 +294,7 @@ impl<'a> AlnStats<'a> {
         } else {
             "primary"
         };
+        let strand_str = if self.strand_rev { "-" } else { "+" };
         let ec = self
             .effective_cov
             .map(|x| format!("{:.2}", x))
@@ -305,13 +308,14 @@ impl<'a> AlnStats<'a> {
             .map(|x| format!("{:.6}", x))
             .unwrap_or_else(|| String::new());
         format!(
-            "{},{},{:.2},{},{:.6},{},{},{},{},{:.6},{:.6},{:.6},{:.2},{},{},{},{},{}",
+            "{},{},{:.2},{},{:.6},{},{},{},{},{},{:.6},{:.6},{:.6},{:.2},{},{},{},{},{}",
             self.read_name,
             self.q_len,
             ec,
             np,
             rq,
             supp_str,
+            strand_str,
             self.mapq,
             self.mean_qual,
             self.read_len,
