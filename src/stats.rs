@@ -23,6 +23,7 @@ pub struct AlnStats<'a> {
     mapq: u8,
     mean_qual: u8,
     pub read_len: usize,
+    pub ref_cov: f32,
     pub gc_content: f32,
     pub concordance: f32,
     pub concordance_gc: f32,
@@ -109,6 +110,7 @@ impl<'a> AlnStats<'a> {
             mean_qual: mean_qual(q_scores.as_ref()),
             // fill in the rest afterwards
             read_len: 0,
+            ref_cov: 0.0,
             gc_content: 0.0,
             concordance: 0.0,
             concordance_gc: 0.0,
@@ -266,6 +268,7 @@ impl<'a> AlnStats<'a> {
 
         let errors = res.mismatches + res.non_hp_ins + res.non_hp_del + res.hp_ins + res.hp_del;
         res.read_len = res.matches + res.mismatches + res.non_hp_del + res.hp_del;
+        res.ref_cov = (res.read_len as f32) / (curr_ref_seq.len() as f32);
         res.gc_content /= res.read_len as f32;
         res.concordance = (res.matches as f32) / ((res.matches + errors) as f32);
         res.concordance_gc = (res.matches as f32)
@@ -285,7 +288,7 @@ impl<'a> AlnStats<'a> {
     }
 
     pub fn header() -> &'static str {
-        "read,read_length,effective_coverage,subread_passes,predicted_concordance,alignment_type,strand,alignment_mapq,mean_quality,aligned_read_length,gc_content,concordance,gap_compressed_concordance,concordance_qv,mismatches,non_hp_ins,non_hp_del,hp_ins,hp_del"
+        "read,read_length,effective_coverage,subread_passes,predicted_concordance,alignment_type,strand,alignment_mapq,mean_quality,aligned_read_length,reference_coverage,gc_content,concordance,gap_compressed_concordance,concordance_qv,mismatches,non_hp_ins,non_hp_del,hp_ins,hp_del"
     }
 
     pub fn to_csv(&self) -> String {
@@ -308,7 +311,7 @@ impl<'a> AlnStats<'a> {
             .map(|x| format!("{:.6}", x))
             .unwrap_or_else(|| String::new());
         format!(
-            "{},{},{:.2},{},{:.6},{},{},{},{},{},{:.6},{:.6},{:.6},{:.2},{},{},{},{},{}",
+            "{},{},{:.2},{},{:.6},{},{},{},{},{},{:.6},{:.6},{:.6},{:.6},{:.2},{},{},{},{},{}",
             self.read_name,
             self.q_len,
             ec,
@@ -319,6 +322,7 @@ impl<'a> AlnStats<'a> {
             self.mapq,
             self.mean_qual,
             self.read_len,
+            self.ref_cov,
             self.gc_content,
             self.concordance,
             self.concordance_gc,
