@@ -9,6 +9,7 @@ use fxhash::FxHashMap;
 
 use std::fs::File;
 use std::io::{BufReader, Write};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 use std::time::Instant;
 
@@ -66,6 +67,7 @@ fn run(
     let summary_yield = Mutex::new(YieldSummary::new(name_column.clone()));
     let summary_identity = Mutex::new(IdentitySummary::new(name_column.clone()));
     let summary_features = Mutex::new(FeatureSummary::new(name_column.clone()));
+    let total_alns = AtomicUsize::new(0);
 
     // lazily read records to shift parsing work to individual threads
     reader
@@ -73,6 +75,8 @@ fn run(
         .par_bridge()
         .map(|r| r.unwrap())
         .for_each(|record| {
+            total_alns.fetch_add(1, Ordering::Relaxed);
+
             let flags = record.flags().unwrap();
             if flags.is_unmapped() || flags.is_secondary() {
                 // skip
@@ -129,7 +133,8 @@ fn run(
     let mut summary_yield_writer = File::create(&summary_yield_path).unwrap();
     write!(summary_yield_writer, "{}", summary_yield).unwrap();
 
-    let summary_identity = summary_identity.into_inner().unwrap();
+    let mut summary_identity = summary_identity.into_inner().unwrap();
+    summary_identity.total_alns = total_alns.into_inner();
     let summary_identity_path = format!("{}.{}", stats_prefix, IDENTITY_STATS_NAME);
     let mut summary_identity_writer = File::create(&summary_identity_path).unwrap();
     write!(summary_identity_writer, "{}", summary_identity).unwrap();

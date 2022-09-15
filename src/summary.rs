@@ -64,6 +64,7 @@ impl fmt::Display for YieldSummary {
 #[derive(Default)]
 pub struct IdentitySummary {
     name_column: Option<String>,
+    pub total_alns: usize,
     matches: usize,
     mismatches: usize,
     non_hp_ins: usize,
@@ -105,7 +106,7 @@ impl IdentitySummary {
 
 impl fmt::Display for IdentitySummary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "{}identity,identity_qv,gap_compressed_identity,matches_per_read,mismatches_per_read,non_hp_ins_per_read,non_hp_del_per_read,hp_ins_per_read,hp_del_per_read", if self.name_column.is_some() { "name," } else { "" })?;
+        writeln!(f, "{}total_alns,primary_alns,identity,identity_qv,gap_compressed_identity,matches_per_read,mismatches_per_read,non_hp_ins_per_read,non_hp_del_per_read,hp_ins_per_read,hp_del_per_read", if self.name_column.is_some() { "name," } else { "" })?;
         let num_errors =
             self.mismatches + self.non_hp_ins + self.hp_ins + self.non_hp_del + self.hp_del;
         let id = (self.matches as f32) / ((self.matches + num_errors) as f32);
@@ -114,8 +115,10 @@ impl fmt::Display for IdentitySummary {
         let per_read = |x| (x as f64) / (self.num_reads as f64);
         writeln!(
             f,
-            "{}{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6}",
+            "{}{},{},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6}",
             self.name_column.as_ref().map(|n| n.as_str()).unwrap_or(""),
+            self.total_alns,
+            self.num_reads,
             id,
             concordance_qv(id, num_errors > 0),
             gc_id,
