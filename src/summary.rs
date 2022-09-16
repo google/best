@@ -191,3 +191,63 @@ impl fmt::Display for FeatureSummary {
         Ok(())
     }
 }
+
+pub struct CigarLenSummary {
+    name_column: Option<String>,
+    cigar_len_stats: FxHashMap<(usize, u8), usize>,
+}
+
+impl CigarLenSummary {
+    pub fn new(mut name_column: Option<String>) -> Self {
+        if let Some(ref mut name) = name_column {
+            name.push(',');
+        }
+        Self {
+            name_column,
+            cigar_len_stats: FxHashMap::default(),
+        }
+    }
+
+    pub fn update(&mut self, aln_stats: &AlnStats) {
+        if aln_stats.supplementary {
+            return;
+        }
+
+        for (&k, v) in &aln_stats.cigar_len_stats {
+            *self.cigar_len_stats.entry(k).or_insert(0) += v;
+        }
+    }
+}
+
+impl fmt::Display for CigarLenSummary {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(
+            f,
+            "{}cigar,length,count,length_count_per_cigar",
+            if self.name_column.is_some() {
+                "name,"
+            } else {
+                ""
+            }
+        )?;
+        let mut v = self.cigar_len_stats.iter().collect::<Vec<_>>();
+        v.sort_by_key(|(x, _)| (x.1, x.0));
+        let mut total_cigars = [0usize; 128];
+        for (cigar, &count) in &v {
+            total_cigars[cigar.1 as usize] += count;
+        }
+
+        for (cigar, &count) in v.into_iter() {
+            writeln!(
+                f,
+                "{}{},{},{},{:.6}",
+                self.name_column.as_ref().map(|n| n.as_str()).unwrap_or(""),
+                cigar.1 as char,
+                cigar.0,
+                count,
+                (count as f32) / (total_cigars[cigar.1 as usize] as f32),
+            )?;
+        }
+        Ok(())
+    }
+}

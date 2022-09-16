@@ -37,6 +37,7 @@ pub struct AlnStats<'a> {
     pub gc_ins: usize,
     pub gc_del: usize,
     pub feature_stats: FxHashMap<&'a str, FeatureStats>,
+    pub cigar_len_stats: FxHashMap<(usize, u8), usize>,
 }
 
 /// Statistics for each interval feature.
@@ -124,6 +125,7 @@ impl<'a> AlnStats<'a> {
             gc_ins: 0,
             gc_del: 0,
             feature_stats: FxHashMap::default(),
+            cigar_len_stats: FxHashMap::default(),
         };
 
         let mut interval_has_error = vec![false; intervals.len()];
@@ -260,8 +262,20 @@ impl<'a> AlnStats<'a> {
 
             // gap compressed
             match op.kind() {
-                Kind::Insertion => res.gc_ins += 1,
-                Kind::Deletion => res.gc_del += 1,
+                Kind::SequenceMatch => {
+                    *res.cigar_len_stats.entry((op.len(), b'=')).or_insert(0) += 1;
+                }
+                Kind::SequenceMismatch => {
+                    *res.cigar_len_stats.entry((op.len(), b'X')).or_insert(0) += 1;
+                }
+                Kind::Insertion => {
+                    *res.cigar_len_stats.entry((op.len(), b'I')).or_insert(0) += 1;
+                    res.gc_ins += 1;
+                }
+                Kind::Deletion => {
+                    *res.cigar_len_stats.entry((op.len(), b'D')).or_insert(0) += 1;
+                    res.gc_del += 1;
+                }
                 _ => (),
             }
         }

@@ -26,6 +26,7 @@ const PER_ALN_STATS_NAME: &str = "per_aln_stats.csv";
 const YIELD_STATS_NAME: &str = "summary_yield_stats.csv";
 const IDENTITY_STATS_NAME: &str = "summary_identity_stats.csv";
 const FEATURE_STATS_NAME: &str = "summary_feature_stats.csv";
+const CIGAR_STATS_NAME: &str = "summary_cigar_stats.csv";
 
 fn run(
     input_path: String,
@@ -67,6 +68,7 @@ fn run(
     let summary_yield = Mutex::new(YieldSummary::new(name_column.clone()));
     let summary_identity = Mutex::new(IdentitySummary::new(name_column.clone()));
     let summary_features = Mutex::new(FeatureSummary::new(name_column.clone()));
+    let summary_cigars = Mutex::new(CigarLenSummary::new(name_column.clone()));
     let total_alns = AtomicUsize::new(0);
 
     // lazily read records to shift parsing work to individual threads
@@ -118,6 +120,7 @@ fn run(
                 if intervals_type != IntervalsType::None {
                     summary_features.lock().unwrap().update(&stats);
                 }
+                summary_cigars.lock().unwrap().update(&stats);
 
                 let mut writer = aln_stats_writer.lock().unwrap();
                 if let Some(ref name) = name_column {
@@ -145,6 +148,11 @@ fn run(
         let mut summary_features_writer = File::create(&summary_features_path).unwrap();
         write!(summary_features_writer, "{}", summary_features).unwrap();
     }
+
+    let summary_cigars = summary_cigars.into_inner().unwrap();
+    let summary_cigars_path = format!("{}.{}", stats_prefix, CIGAR_STATS_NAME);
+    let mut summary_cigars_writer = File::create(&summary_cigars_path).unwrap();
+    write!(summary_cigars_writer, "{}", summary_cigars).unwrap();
 }
 
 fn main() {
