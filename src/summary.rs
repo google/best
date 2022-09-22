@@ -108,13 +108,14 @@ impl IdentitySummary {
 
 impl fmt::Display for IdentitySummary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "{}total_alns,primary_alns,identity,identity_qv,gap_compressed_identity,matches_per_read,mismatches_per_read,non_hp_ins_per_read,non_hp_del_per_read,hp_ins_per_read,hp_del_per_read", if self.name_column.is_some() { "name," } else { "" })?;
+        writeln!(f, "{}total_alns,primary_alns,identity,identity_qv,gap_compressed_identity,matches_per_kbp,mismatches_per_kbp,non_hp_ins_per_kbp,non_hp_del_per_kbp,hp_ins_per_kbp,hp_del_per_kbp", if self.name_column.is_some() { "name," } else { "" })?;
         let num_errors =
             self.mismatches + self.non_hp_ins + self.hp_ins + self.non_hp_del + self.hp_del;
+        let num_bases = self.matches + self.mismatches + self.non_hp_del + self.hp_del;
         let id = (self.matches as f32) / ((self.matches + num_errors) as f32);
         let gc_id = (self.matches as f32)
             / ((self.matches + self.mismatches + self.gc_ins + self.gc_del) as f32);
-        let per_read = |x| (x as f64) / (self.num_reads as f64);
+        let per_kbp = |x| (x as f64) / (num_bases as f64) * 1000.0f64;
         writeln!(
             f,
             "{}{},{},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6}",
@@ -124,12 +125,12 @@ impl fmt::Display for IdentitySummary {
             id,
             concordance_qv(id, num_errors > 0),
             gc_id,
-            per_read(self.matches),
-            per_read(self.mismatches),
-            per_read(self.non_hp_ins),
-            per_read(self.non_hp_del),
-            per_read(self.hp_ins),
-            per_read(self.hp_del)
+            per_kbp(self.matches),
+            per_kbp(self.mismatches),
+            per_kbp(self.non_hp_ins),
+            per_kbp(self.non_hp_del),
+            per_kbp(self.hp_ins),
+            per_kbp(self.hp_del)
         )
     }
 }
