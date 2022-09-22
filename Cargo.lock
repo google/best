@@ -32,6 +32,7 @@ dependencies = [
  "clap",
  "fxhash",
  "noodles",
+ "ordered-float",
  "rayon",
  "rust-lapper",
 ]
@@ -369,6 +370,15 @@ name = "once_cell"
 version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7709cef83f0c1f58f666e746a08b21e0085f7440fa6a29cc194d68aac97a4225"
+
+[[package]]
+name = "ordered-float"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "98ffdb14730ed2ef599c65810c15b000896e21e8776b512de0db0c3d7335cc2a"
+dependencies = [
+ "num-traits",
+]
 
 [[package]]
 name = "os_str_bytes"

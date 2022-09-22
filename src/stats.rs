@@ -8,6 +8,9 @@ use sam::record::data::field::Tag;
 
 use fxhash::FxHashMap;
 
+use std::str::FromStr;
+use std::fmt;
+
 use crate::bed::*;
 
 /// Statistics for each alignment.
@@ -15,13 +18,13 @@ use crate::bed::*;
 pub struct AlnStats<'a> {
     pub read_name: String,
     pub q_len: usize,
-    effective_cov: Option<f32>,
-    subread_passes: Option<usize>,
-    pred_concordance: Option<f32>,
+    pub effective_cov: Option<f32>,
+    pub subread_passes: Option<usize>,
+    pub pred_concordance: Option<f32>,
     pub supplementary: bool,
-    strand_rev: bool,
-    mapq: u8,
-    mean_qual: u8,
+    pub strand_rev: bool,
+    pub mapq: u8,
+    pub mean_qual: u8,
     pub read_len: usize,
     pub ref_cov: f32,
     pub gc_content: f32,
@@ -38,6 +41,108 @@ pub struct AlnStats<'a> {
     pub gc_del: usize,
     pub feature_stats: FxHashMap<&'a str, FeatureStats>,
     pub cigar_len_stats: FxHashMap<(usize, u8), usize>,
+}
+
+#[derive(Eq, PartialEq, Hash, Copy, Clone)]
+pub enum Binnable {
+    QLen,
+    SubreadPasses,
+    MapQ,
+    MeanQual,
+    GcContent,
+    ConcordanceQv,
+}
+
+impl Binnable {
+    pub fn get_bin(&self, a: &AlnStats, step: f32) -> String {
+        match self {
+            Self::QLen => format!("{}", a.q_len / (step as usize) * (step as usize)),
+            Self::SubreadPasses => format!("{}", a.subread_passes.expect("Subread passes not found!") / (step as usize) * (step as usize)),
+            Self::MapQ => format!("{}", a.mapq / (step as u8) * (step as u8)),
+            Self::MeanQual => format!("{}", a.mean_qual / (step as u8) * (step as u8)),
+            Self::GcContent => format!("{:.6}", (a.gc_content / step).floor() * step),
+            Self::ConcordanceQv => format!("{:.2}", (a.concordance_qv / step).floor() * step),
+        }
+    }
+}
+
+impl fmt::Display for Binnable {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let s = match self {
+            Self::QLen => "q_len",
+            Self::SubreadPasses => "subread_passes",
+            Self::MapQ => "mapq",
+            Self::MeanQual => "mean_qual",
+            Self::GcContent => "gc_content",
+            Self::ConcordanceQv => "concordance_qv",
+        };
+        write!(f, "{}", s)
+    }
+}
+
+impl FromStr for Binnable {
+    type Err = Box<dyn std::error::Error>;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use Binnable::*;
+        match s {
+            "q_len" => Ok(QLen),
+            "subread_passes" => Ok(SubreadPasses),
+            "mapq" => Ok(MapQ),
+            "mean_qual" => Ok(MeanQual),
+            "gc_content" => Ok(GcContent),
+            "concordance_qv" => Ok(ConcordanceQv),
+            _ => Err("Invalid stat to bin across!".into()),
+        }
+    }
+}
+
+/// Statistics for each bin.
+#[derive(Debug, Default)]
+pub struct BinStats {
+    pub num_reads: usize,
+    pub matches: usize,
+    pub mismatches: usize,
+    pub non_hp_ins: usize,
+    pub non_hp_del: usize,
+    pub hp_ins: usize,
+    pub hp_del: usize,
+}
+
+impl BinStats {
+    pub fn new(stats: &AlnStats) -> Self {
+        Self {
+            num_reads: 1,
+            matches: stats.matches,
+            mismatches: stats.mismatches,
+            non_hp_ins: stats.non_hp_ins,
+            non_hp_del: stats.non_hp_del,
+            hp_ins: stats.hp_ins,
+            hp_del: stats.hp_del,
+        }
+    }
+
+    pub fn assign_add(&mut self, o: &Self) {
+        self.num_reads += o.num_reads;
+        self.matches += o.matches;
+        self.mismatches += o.mismatches;
+        self.non_hp_ins += o.non_hp_ins;
+        self.non_hp_del += o.non_hp_del;
+        self.hp_ins += o.hp_ins;
+        self.hp_del += o.hp_del;
+    }
+
+    pub fn num_bases(&self) -> usize {
+        self.matches + self.mismatches + self.non_hp_del + self.hp_del
+    }
+
+    pub fn num_errors(&self) -> usize {
+        self.mismatches + self.non_hp_ins + self.hp_ins + self.non_hp_del + self.hp_del
+    }
+
+    pub fn identity(&self) -> f32 {
+        (self.matches as f32) / ((self.matches + self.num_errors()) as f32)
+    }
 }
 
 /// Statistics for each interval feature.
@@ -354,7 +459,7 @@ pub fn concordance_qv(concordance: f32, has_errors: bool) -> f32 {
     if has_errors {
         -10.0f32 * (1.0f32 - concordance).log10()
     } else {
-        60.0f32
+        75.0f32
     }
 }
 

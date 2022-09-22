@@ -12,6 +12,7 @@ use std::io::{BufReader, Write};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 use std::time::Instant;
+use std::str::FromStr;
 
 mod stats;
 use stats::*;
@@ -27,11 +28,13 @@ const YIELD_STATS_NAME: &str = "summary_yield_stats.csv";
 const IDENTITY_STATS_NAME: &str = "summary_identity_stats.csv";
 const FEATURE_STATS_NAME: &str = "summary_feature_stats.csv";
 const CIGAR_STATS_NAME: &str = "summary_cigar_stats.csv";
+const BIN_STATS_NAME: &str = "summary_bin_stats.csv";
 
 fn run(
     input_path: String,
     reference_path: String,
     stats_prefix: String,
+    bin_types: Option<Vec<(Binnable, f32)>>,
     intervals_type: IntervalsType,
     name_column: Option<String>,
 ) {
@@ -69,6 +72,7 @@ fn run(
     let summary_identity = Mutex::new(IdentitySummary::new(name_column.clone()));
     let summary_features = Mutex::new(FeatureSummary::new(name_column.clone()));
     let summary_cigars = Mutex::new(CigarLenSummary::new(name_column.clone()));
+    let summary_bins = bin_types.map(|b| Mutex::new(BinSummary::new(name_column.clone(), b)));
     let total_alns = AtomicUsize::new(0);
 
     // lazily read records to shift parsing work to individual threads
@@ -121,6 +125,7 @@ fn run(
                     summary_features.lock().unwrap().update(&stats);
                 }
                 summary_cigars.lock().unwrap().update(&stats);
+                summary_bins.as_ref().map(|b| b.lock().unwrap().update(&stats));
 
                 let mut writer = aln_stats_writer.lock().unwrap();
                 if let Some(ref name) = name_column {
@@ -153,11 +158,25 @@ fn run(
     let summary_cigars_path = format!("{}.{}", stats_prefix, CIGAR_STATS_NAME);
     let mut summary_cigars_writer = File::create(&summary_cigars_path).unwrap();
     write!(summary_cigars_writer, "{}", summary_cigars).unwrap();
+
+    if let Some(b) = summary_bins {
+        let summary_bins = b.into_inner().unwrap();
+        let summary_bins_path = format!("{}.{}", stats_prefix, BIN_STATS_NAME);
+        let mut summary_bins_writer = File::create(&summary_bins_path).unwrap();
+        write!(summary_bins_writer, "{}", summary_bins).unwrap();
+    }
 }
 
 fn main() {
     let start_time = Instant::now();
     let args = Args::parse();
+
+    let bin_types = args.bin_types.map(|b| b.iter().map(|x| {
+        let mut s = x.split(":");
+        let bin_type = s.next().expect("Bin type not found! Expected <bin_type>:<step_size>");
+        let step = s.next().expect("Step size not found! Expected <bin_type>:<step_size>");
+        (Binnable::from_str(bin_type).unwrap(), step.parse::<f32>().unwrap())
+    }).collect());
 
     let interval_features = [
         args.hp_intervals,
@@ -197,6 +216,7 @@ fn main() {
         args.input,
         args.reference,
         args.stats_prefix,
+        bin_types,
         intervals_type,
         args.name_column,
     );
@@ -230,6 +250,12 @@ struct Args {
     /// Add column with a specific name in CSV outputs.
     #[clap(short, long)]
     name_column: Option<String>,
+
+    /// Types of bins to use for per alignment stats.
+    ///
+    /// Each bin should be of the format <bin_type>:<step_size>.
+    #[clap(short, long, min_values = 1)]
+    bin_types: Option<Vec<String>>,
 
     /// Input intervals BED file.
     #[clap(short, long)]

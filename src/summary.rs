@@ -2,12 +2,14 @@ use std::fmt;
 
 use fxhash::FxHashMap;
 
+use ordered_float::OrderedFloat;
+
 use crate::stats::*;
 
 pub struct YieldSummary {
     name_column: Option<String>,
     /// (reads, bases)
-    q_yield: [(usize, usize); 10],
+    q_yield: [(usize, usize); 15],
 }
 
 impl YieldSummary {
@@ -17,7 +19,7 @@ impl YieldSummary {
         }
         Self {
             name_column,
-            q_yield: [(0usize, 0usize); 10],
+            q_yield: [(0usize, 0usize); 15],
         }
     }
 
@@ -247,6 +249,79 @@ impl fmt::Display for CigarLenSummary {
                 count,
                 (count as f32) / (total_cigars[cigar.1 as usize] as f32),
             )?;
+        }
+        Ok(())
+    }
+}
+
+pub struct BinSummary {
+    name_column: Option<String>,
+    bin_types: Vec<(Binnable, f32)>,
+    bin_maps: FxHashMap<Binnable, FxHashMap<String, BinStats>>,
+}
+
+impl BinSummary {
+    pub fn new(mut name_column: Option<String>, bin_types: Vec<(Binnable, f32)>) -> Self {
+        if let Some(ref mut name) = name_column {
+            name.push(',');
+        }
+        let bin_maps = bin_types.iter().map(|&(b, _)| (b, FxHashMap::default())).collect();
+        Self {
+            name_column,
+            bin_types,
+            bin_maps,
+        }
+    }
+
+    pub fn update(&mut self, aln_stats: &AlnStats) {
+        if aln_stats.supplementary {
+            return;
+        }
+
+        self.bin_types.iter().for_each(|&(bin_type, step)| {
+            let bin = bin_type.get_bin(aln_stats, step);
+            let bin_stats = BinStats::new(aln_stats);
+            self.bin_maps.get_mut(&bin_type).unwrap().entry(bin).or_insert_with(|| BinStats::default()).assign_add(&bin_stats);
+        });
+    }
+}
+
+impl fmt::Display for BinSummary {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(
+            f,
+            "{}bin_type,bin,num_reads,num_bases,matches_per_kbp,mismatches_per_kbp,non_hp_ins_per_kbp,non_hp_del_per_kbp,hp_ins_per_kbp,hp_del_per_kbp",
+            if self.name_column.is_some() {
+                "name,"
+            } else {
+                ""
+            }
+        )?;
+        for (bin_type, bins) in &self.bin_maps {
+            let mut bins = bins.iter().collect::<Vec<_>>();
+            bins.sort_by_key(|(b, _)| OrderedFloat(b.parse::<f32>().unwrap()));
+
+            for (bin, stats) in bins {
+                let per_kbp = |x| (x as f32) / (stats.num_bases() as f32) * 1000.0f32;
+                let id = stats.identity();
+                writeln!(
+                    f,
+                    "{}{},{},{},{},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6}",
+                    self.name_column.as_ref().map(|n| n.as_str()).unwrap_or(""),
+                    bin_type,
+                    bin,
+                    stats.num_reads,
+                    stats.num_bases(),
+                    id,
+                    concordance_qv(id, id != 1.0),
+                    per_kbp(stats.matches),
+                    per_kbp(stats.mismatches),
+                    per_kbp(stats.non_hp_ins),
+                    per_kbp(stats.non_hp_del),
+                    per_kbp(stats.hp_ins),
+                    per_kbp(stats.hp_del),
+                )?;
+            }
         }
         Ok(())
     }
