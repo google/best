@@ -30,7 +30,7 @@ impl YieldSummary {
 
         for i in 0..self.q_yield.len() {
             let min_q = i * 5;
-            if aln_stats.concordance_qv >= (min_q as f32) {
+            if aln_stats.concordance_qv >= (min_q as f64) {
                 self.q_yield[i].0 += 1;
                 self.q_yield[i].1 += aln_stats.q_len;
             }
@@ -112,9 +112,9 @@ impl fmt::Display for IdentitySummary {
         let num_errors =
             self.mismatches + self.non_hp_ins + self.hp_ins + self.non_hp_del + self.hp_del;
         let num_bases = self.matches + self.mismatches + self.non_hp_del + self.hp_del;
-        let id = (self.matches as f32) / ((self.matches + num_errors) as f32);
-        let gc_id = (self.matches as f32)
-            / ((self.matches + self.mismatches + self.gc_ins + self.gc_del) as f32);
+        let id = (self.matches as f64) / ((self.matches + num_errors) as f64);
+        let gc_id = (self.matches as f64)
+            / ((self.matches + self.mismatches + self.gc_ins + self.gc_del) as f64);
         let per_kbp = |x| (x as f64) / (num_bases as f64) * 1000.0f64;
         writeln!(
             f,
@@ -248,7 +248,7 @@ impl fmt::Display for CigarLenSummary {
                 cigar.1 as char,
                 cigar.0,
                 count,
-                (count as f32) / (total_cigars[cigar.1 as usize] as f32),
+                (count as f64) / (total_cigars[cigar.1 as usize] as f64),
             )?;
         }
         Ok(())
@@ -257,12 +257,12 @@ impl fmt::Display for CigarLenSummary {
 
 pub struct BinSummary {
     name_column: Option<String>,
-    bin_types: Vec<(Binnable, f32)>,
+    bin_types: Vec<(Binnable, f64)>,
     bin_maps: FxHashMap<Binnable, FxHashMap<String, BinStats>>,
 }
 
 impl BinSummary {
-    pub fn new(mut name_column: Option<String>, bin_types: Vec<(Binnable, f32)>) -> Self {
+    pub fn new(mut name_column: Option<String>, bin_types: Vec<(Binnable, f64)>) -> Self {
         if let Some(ref mut name) = name_column {
             name.push(',');
         }
@@ -300,10 +300,10 @@ impl fmt::Display for BinSummary {
         )?;
         for (bin_type, bins) in &self.bin_maps {
             let mut bins = bins.iter().collect::<Vec<_>>();
-            bins.sort_by_key(|(b, _)| OrderedFloat(b.parse::<f32>().unwrap()));
+            bins.sort_by_key(|(b, _)| OrderedFloat(b.parse::<f64>().unwrap()));
 
             for (bin, stats) in bins {
-                let per_kbp = |x| (x as f32) / (stats.num_bases() as f32) * 1000.0f32;
+                let per_kbp = |x| (x as f64) / (stats.num_bases() as f64) * 1000.0f64;
                 let id = stats.identity();
                 writeln!(
                     f,

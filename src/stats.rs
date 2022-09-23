@@ -18,19 +18,19 @@ use crate::bed::*;
 pub struct AlnStats<'a> {
     pub read_name: String,
     pub q_len: usize,
-    pub effective_cov: Option<f32>,
+    pub effective_cov: Option<f64>,
     pub subread_passes: Option<usize>,
-    pub pred_concordance: Option<f32>,
+    pub pred_concordance: Option<f64>,
     pub supplementary: bool,
     pub strand_rev: bool,
     pub mapq: u8,
     pub mean_qual: u8,
     pub read_len: usize,
-    pub ref_cov: f32,
-    pub gc_content: f32,
-    pub concordance: f32,
-    pub concordance_gc: f32,
-    pub concordance_qv: f32,
+    pub ref_cov: f64,
+    pub gc_content: f64,
+    pub concordance: f64,
+    pub concordance_gc: f64,
+    pub concordance_qv: f64,
     pub matches: usize,
     pub mismatches: usize,
     pub non_hp_ins: usize,
@@ -54,7 +54,7 @@ pub enum Binnable {
 }
 
 impl Binnable {
-    pub fn get_bin(&self, a: &AlnStats, step: f32) -> String {
+    pub fn get_bin(&self, a: &AlnStats, step: f64) -> String {
         match self {
             Self::QLen => format!("{}", a.q_len / (step as usize) * (step as usize)),
             Self::SubreadPasses => format!("{}", a.subread_passes.expect("Subread passes not found!") / (step as usize) * (step as usize)),
@@ -140,8 +140,8 @@ impl BinStats {
         self.mismatches + self.non_hp_ins + self.hp_ins + self.non_hp_del + self.hp_del
     }
 
-    pub fn identity(&self) -> f32 {
-        (self.matches as f32) / ((self.matches + self.num_errors()) as f32)
+    pub fn identity(&self) -> f64 {
+        (self.matches as f64) / ((self.matches + self.num_errors()) as f64)
     }
 }
 
@@ -178,8 +178,8 @@ impl FeatureStats {
         self.mismatches + self.non_hp_ins + self.hp_ins + self.non_hp_del + self.hp_del
     }
 
-    pub fn identity(&self) -> f32 {
-        (self.matches as f32) / ((self.matches + self.num_errors()) as f32)
+    pub fn identity(&self) -> f64 {
+        (self.matches as f64) / ((self.matches + self.num_errors()) as f64)
     }
 }
 
@@ -196,13 +196,13 @@ impl<'a> AlnStats<'a> {
         let flags = r.flags().ok()?;
         let data = r.data().ok()?;
         let ec_tag = Tag::try_from(*b"ec").ok()?;
-        let ec = data.get(ec_tag).map(|f| f.value().as_float().unwrap());
+        let ec = data.get(ec_tag).map(|f| f.value().as_float().unwrap() as f64);
         let np_tag: Tag = Tag::try_from(*b"np").ok()?;
         let np = data
             .get(np_tag)
             .map(|f| f.value().as_int().unwrap() as usize);
         let rq_tag: Tag = Tag::try_from(*b"rq").ok()?;
-        let rq = data.get(rq_tag).map(|f| f.value().as_float().unwrap());
+        let rq = data.get(rq_tag).map(|f| f.value().as_float().unwrap() as f64);
 
         let mut res = AlnStats {
             read_name: r.read_name().ok()??.to_string(),
@@ -387,11 +387,11 @@ impl<'a> AlnStats<'a> {
 
         let errors = res.mismatches + res.non_hp_ins + res.non_hp_del + res.hp_ins + res.hp_del;
         res.read_len = res.matches + res.mismatches + res.non_hp_del + res.hp_del;
-        res.ref_cov = (res.read_len as f32) / (curr_ref_seq.len() as f32);
-        res.gc_content /= res.read_len as f32;
-        res.concordance = (res.matches as f32) / ((res.matches + errors) as f32);
-        res.concordance_gc = (res.matches as f32)
-            / ((res.matches + res.mismatches + res.gc_ins + res.gc_del) as f32);
+        res.ref_cov = (res.read_len as f64) / (curr_ref_seq.len() as f64);
+        res.gc_content /= res.read_len as f64;
+        res.concordance = (res.matches as f64) / ((res.matches + errors) as f64);
+        res.concordance_gc = (res.matches as f64)
+            / ((res.matches + res.mismatches + res.gc_ins + res.gc_del) as f64);
         res.concordance_qv = concordance_qv(res.concordance, errors > 0);
 
         for (i, &has_error) in intervals.iter().zip(&interval_has_error) {
@@ -455,18 +455,18 @@ impl<'a> AlnStats<'a> {
     }
 }
 
-pub fn concordance_qv(concordance: f32, has_errors: bool) -> f32 {
+pub fn concordance_qv(concordance: f64, has_errors: bool) -> f64 {
     if has_errors {
-        -10.0f32 * (1.0f32 - concordance).log10()
+        -10.0f64 * (1.0f64 - concordance).log10()
     } else {
-        75.0f32
+        75.0f64
     }
 }
 
 fn mean_qual(q_scores: &[sam::record::quality_scores::Score]) -> u8 {
     let sum_q = q_scores
         .iter()
-        .map(|&q| 10.0f32.powf(-(u8::from(q) as f32) / 10.0f32))
-        .sum::<f32>();
-    (-10.0f32 * (sum_q / (q_scores.len() as f32)).log10()).round() as u8
+        .map(|&q| 10.0f64.powf(-(u8::from(q) as f64) / 10.0f64))
+        .sum::<f64>();
+    (-10.0f64 * (sum_q / (q_scores.len() as f64)).log10()).round() as u8
 }
