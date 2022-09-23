@@ -306,8 +306,8 @@ impl fmt::Display for BinSummary {
                 ""
             }
         )?;
-        for (bin_type, bins) in &self.bin_maps {
-            let mut bins = bins.iter().collect::<Vec<_>>();
+        for &(bin_type, _) in &self.bin_types {
+            let mut bins = self.bin_maps[&bin_type].iter().collect::<Vec<_>>();
             bins.sort_by_key(|(b, _)| OrderedFloat(b.parse::<f64>().unwrap()));
 
             for (bin, stats) in bins {
