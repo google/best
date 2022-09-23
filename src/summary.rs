@@ -257,22 +257,20 @@ impl fmt::Display for CigarLenSummary {
 
 pub struct BinSummary {
     name_column: Option<String>,
-    bin_types: Vec<(Binnable, f64)>,
-    bin_maps: FxHashMap<Binnable, FxHashMap<String, BinStats>>,
+    bin_maps: Vec<(BinType, FxHashMap<String, BinStats>)>,
 }
 
 impl BinSummary {
-    pub fn new(mut name_column: Option<String>, bin_types: Vec<(Binnable, f64)>) -> Self {
+    pub fn new(mut name_column: Option<String>, bin_types: Vec<BinType>) -> Self {
         if let Some(ref mut name) = name_column {
             name.push(',');
         }
         let bin_maps = bin_types
-            .iter()
-            .map(|&(b, _)| (b, FxHashMap::default()))
+            .into_iter()
+            .map(|b| (b, FxHashMap::default()))
             .collect();
         Self {
             name_column,
-            bin_types,
             bin_maps,
         }
     }
@@ -282,12 +280,10 @@ impl BinSummary {
             return;
         }
 
-        self.bin_types.iter().for_each(|&(bin_type, step)| {
-            let bin = bin_type.get_bin(aln_stats, step);
+        self.bin_maps.iter_mut().for_each(|(bin_type, bin_map)| {
+            let bin = bin_type.get_bin(aln_stats);
             let bin_stats = BinStats::new(aln_stats);
-            self.bin_maps
-                .get_mut(&bin_type)
-                .unwrap()
+            bin_map
                 .entry(bin)
                 .or_insert_with(|| BinStats::default())
                 .assign_add(&bin_stats);
@@ -306,8 +302,8 @@ impl fmt::Display for BinSummary {
                 ""
             }
         )?;
-        for &(bin_type, _) in &self.bin_types {
-            let mut bins = self.bin_maps[&bin_type].iter().collect::<Vec<_>>();
+        for (bin_type, bin_map) in &self.bin_maps {
+            let mut bins = bin_map.iter().collect::<Vec<_>>();
             bins.sort_by_key(|(b, _)| OrderedFloat(b.parse::<f64>().unwrap()));
 
             for (bin, stats) in bins {

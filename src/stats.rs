@@ -43,59 +43,65 @@ pub struct AlnStats<'a> {
     pub cigar_len_stats: FxHashMap<(usize, u8), usize>,
 }
 
-#[derive(Eq, PartialEq, Hash, Copy, Clone)]
-pub enum Binnable {
-    QLen,
-    SubreadPasses,
-    MapQ,
-    MeanQual,
-    GcContent,
-    ConcordanceQv,
+#[derive(Copy, Clone)]
+pub enum BinType {
+    QLen(usize),
+    SubreadPasses(usize),
+    MapQ(u8),
+    MeanQual(u8),
+    GcContent(f64),
+    ConcordanceQv(f64),
 }
 
-impl Binnable {
-    pub fn get_bin(&self, a: &AlnStats, step: f64) -> String {
+impl BinType {
+    pub fn get_bin(&self, a: &AlnStats) -> String {
         match self {
-            Self::QLen => format!("{}", a.q_len / (step as usize) * (step as usize)),
-            Self::SubreadPasses => format!(
+            Self::QLen(step) => format!("{}", a.q_len / step * step),
+            Self::SubreadPasses(step) => format!(
                 "{}",
-                a.subread_passes.expect("Subread passes not found!") / (step as usize)
-                    * (step as usize)
+                a.subread_passes.expect("Subread passes not found!") / step * step
             ),
-            Self::MapQ => format!("{}", a.mapq / (step as u8) * (step as u8)),
-            Self::MeanQual => format!("{}", a.mean_qual / (step as u8) * (step as u8)),
-            Self::GcContent => format!("{:.6}", (a.gc_content / step).floor() * step),
-            Self::ConcordanceQv => format!("{:.2}", (a.concordance_qv / step).floor() * step),
+            Self::MapQ(step) => format!("{}", a.mapq / step * step),
+            Self::MeanQual(step) => format!("{}", a.mean_qual / step * step),
+            Self::GcContent(step) => format!("{:.6}", (a.gc_content / step).floor() * step),
+            Self::ConcordanceQv(step) => format!("{:.2}", (a.concordance_qv / step).floor() * step),
         }
     }
 }
 
-impl fmt::Display for Binnable {
+impl fmt::Display for BinType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let s = match self {
-            Self::QLen => "q_len",
-            Self::SubreadPasses => "subread_passes",
-            Self::MapQ => "mapq",
-            Self::MeanQual => "mean_qual",
-            Self::GcContent => "gc_content",
-            Self::ConcordanceQv => "concordance_qv",
-        };
-        write!(f, "{}", s)
+        match self {
+            Self::QLen(step) => write!(f, "q_len:{}", step),
+            Self::SubreadPasses(step) => write!(f, "subread_passes:{}", step),
+            Self::MapQ(step) => write!(f, "mapq:{}", step),
+            Self::MeanQual(step) => write!(f, "mean_qual:{}", step),
+            Self::GcContent(step) => write!(f, "gc_content:{}", step),
+            Self::ConcordanceQv(step) => write!(f, "concordance_qv:{}", step),
+        }
     }
 }
 
-impl FromStr for Binnable {
+impl FromStr for BinType {
     type Err = Box<dyn std::error::Error>;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        use Binnable::*;
-        match s {
-            "q_len" => Ok(QLen),
-            "subread_passes" => Ok(SubreadPasses),
-            "mapq" => Ok(MapQ),
-            "mean_qual" => Ok(MeanQual),
-            "gc_content" => Ok(GcContent),
-            "concordance_qv" => Ok(ConcordanceQv),
+        let mut split = s.split(':');
+        let a = split
+            .next()
+            .expect("Bin type not found! Expected <bin_type>:<step_size>");
+        let b = split
+            .next()
+            .expect("Step size not found! Expected <bin_type>:<step_size>");
+
+        use BinType::*;
+        match a {
+            "q_len" => Ok(QLen(b.parse::<_>().unwrap())),
+            "subread_passes" => Ok(SubreadPasses(b.parse::<_>().unwrap())),
+            "mapq" => Ok(MapQ(b.parse::<_>().unwrap())),
+            "mean_qual" => Ok(MeanQual(b.parse::<_>().unwrap())),
+            "gc_content" => Ok(GcContent(b.parse::<_>().unwrap())),
+            "concordance_qv" => Ok(ConcordanceQv(b.parse::<_>().unwrap())),
             _ => Err("Invalid stat to bin across!".into()),
         }
     }

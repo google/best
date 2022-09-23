@@ -34,7 +34,7 @@ fn run(
     input_path: String,
     reference_path: String,
     stats_prefix: String,
-    bin_types: Option<Vec<(Binnable, f64)>>,
+    bin_types: Option<Vec<BinType>>,
     intervals_type: IntervalsType,
     name_column: Option<String>,
 ) {
@@ -173,23 +173,9 @@ fn main() {
     let start_time = Instant::now();
     let args = Args::parse();
 
-    let bin_types = args.bin_types.map(|b| {
-        b.iter()
-            .map(|x| {
-                let mut s = x.split(":");
-                let bin_type = s
-                    .next()
-                    .expect("Bin type not found! Expected <bin_type>:<step_size>");
-                let step = s
-                    .next()
-                    .expect("Step size not found! Expected <bin_type>:<step_size>");
-                (
-                    Binnable::from_str(bin_type).unwrap(),
-                    step.parse::<f64>().unwrap(),
-                )
-            })
-            .collect()
-    });
+    let bin_types = args
+        .bin_types
+        .map(|b| b.iter().map(|s| BinType::from_str(s).unwrap()).collect());
 
     let interval_features = [
         args.hp_intervals,
