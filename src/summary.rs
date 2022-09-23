@@ -299,7 +299,7 @@ impl fmt::Display for BinSummary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
             f,
-            "{}bin_type,bin,num_reads,num_bases,matches_per_kbp,mismatches_per_kbp,non_hp_ins_per_kbp,non_hp_del_per_kbp,hp_ins_per_kbp,hp_del_per_kbp",
+            "{}bin_type,bin,num_reads,num_bases,identity,identity_qv,matches_per_kbp,mismatches_per_kbp,non_hp_ins_per_kbp,non_hp_del_per_kbp,hp_ins_per_kbp,hp_del_per_kbp",
             if self.name_column.is_some() {
                 "name,"
             } else {
