@@ -266,7 +266,10 @@ impl BinSummary {
         if let Some(ref mut name) = name_column {
             name.push(',');
         }
-        let bin_maps = bin_types.iter().map(|&(b, _)| (b, FxHashMap::default())).collect();
+        let bin_maps = bin_types
+            .iter()
+            .map(|&(b, _)| (b, FxHashMap::default()))
+            .collect();
         Self {
             name_column,
             bin_types,
@@ -282,7 +285,12 @@ impl BinSummary {
         self.bin_types.iter().for_each(|&(bin_type, step)| {
             let bin = bin_type.get_bin(aln_stats, step);
             let bin_stats = BinStats::new(aln_stats);
-            self.bin_maps.get_mut(&bin_type).unwrap().entry(bin).or_insert_with(|| BinStats::default()).assign_add(&bin_stats);
+            self.bin_maps
+                .get_mut(&bin_type)
+                .unwrap()
+                .entry(bin)
+                .or_insert_with(|| BinStats::default())
+                .assign_add(&bin_stats);
         });
     }
 }

@@ -8,8 +8,8 @@ use sam::record::data::field::Tag;
 
 use fxhash::FxHashMap;
 
-use std::str::FromStr;
 use std::fmt;
+use std::str::FromStr;
 
 use crate::bed::*;
 
@@ -57,7 +57,11 @@ impl Binnable {
     pub fn get_bin(&self, a: &AlnStats, step: f64) -> String {
         match self {
             Self::QLen => format!("{}", a.q_len / (step as usize) * (step as usize)),
-            Self::SubreadPasses => format!("{}", a.subread_passes.expect("Subread passes not found!") / (step as usize) * (step as usize)),
+            Self::SubreadPasses => format!(
+                "{}",
+                a.subread_passes.expect("Subread passes not found!") / (step as usize)
+                    * (step as usize)
+            ),
             Self::MapQ => format!("{}", a.mapq / (step as u8) * (step as u8)),
             Self::MeanQual => format!("{}", a.mean_qual / (step as u8) * (step as u8)),
             Self::GcContent => format!("{:.6}", (a.gc_content / step).floor() * step),
@@ -196,13 +200,17 @@ impl<'a> AlnStats<'a> {
         let flags = r.flags().ok()?;
         let data = r.data().ok()?;
         let ec_tag = Tag::try_from(*b"ec").ok()?;
-        let ec = data.get(ec_tag).map(|f| f.value().as_float().unwrap() as f64);
+        let ec = data
+            .get(ec_tag)
+            .map(|f| f.value().as_float().unwrap() as f64);
         let np_tag: Tag = Tag::try_from(*b"np").ok()?;
         let np = data
             .get(np_tag)
             .map(|f| f.value().as_int().unwrap() as usize);
         let rq_tag: Tag = Tag::try_from(*b"rq").ok()?;
-        let rq = data.get(rq_tag).map(|f| f.value().as_float().unwrap() as f64);
+        let rq = data
+            .get(rq_tag)
+            .map(|f| f.value().as_float().unwrap() as f64);
 
         let mut res = AlnStats {
             read_name: r.read_name().ok()??.to_string(),

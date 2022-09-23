@@ -9,10 +9,10 @@ use fxhash::FxHashMap;
 
 use std::fs::File;
 use std::io::{BufReader, Write};
+use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 use std::time::Instant;
-use std::str::FromStr;
 
 mod stats;
 use stats::*;
@@ -125,7 +125,9 @@ fn run(
                     summary_features.lock().unwrap().update(&stats);
                 }
                 summary_cigars.lock().unwrap().update(&stats);
-                summary_bins.as_ref().map(|b| b.lock().unwrap().update(&stats));
+                summary_bins
+                    .as_ref()
+                    .map(|b| b.lock().unwrap().update(&stats));
 
                 let mut writer = aln_stats_writer.lock().unwrap();
                 if let Some(ref name) = name_column {
@@ -171,12 +173,23 @@ fn main() {
     let start_time = Instant::now();
     let args = Args::parse();
 
-    let bin_types = args.bin_types.map(|b| b.iter().map(|x| {
-        let mut s = x.split(":");
-        let bin_type = s.next().expect("Bin type not found! Expected <bin_type>:<step_size>");
-        let step = s.next().expect("Step size not found! Expected <bin_type>:<step_size>");
-        (Binnable::from_str(bin_type).unwrap(), step.parse::<f64>().unwrap())
-    }).collect());
+    let bin_types = args.bin_types.map(|b| {
+        b.iter()
+            .map(|x| {
+                let mut s = x.split(":");
+                let bin_type = s
+                    .next()
+                    .expect("Bin type not found! Expected <bin_type>:<step_size>");
+                let step = s
+                    .next()
+                    .expect("Step size not found! Expected <bin_type>:<step_size>");
+                (
+                    Binnable::from_str(bin_type).unwrap(),
+                    step.parse::<f64>().unwrap(),
+                )
+            })
+            .collect()
+    });
 
     let interval_features = [
         args.hp_intervals,
