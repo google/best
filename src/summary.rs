@@ -177,7 +177,7 @@ impl fmt::Display for FeatureSummary {
                 f,
                 "{}{},{},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6}",
                 self.name_column.as_ref().map(|n| n.as_str()).unwrap_or(""),
-                feature,
+                feature.trim(),
                 stats.overlaps,
                 per_interval(stats.identical_overlaps),
                 id,

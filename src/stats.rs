@@ -257,36 +257,47 @@ impl<'a> AlnStats<'a> {
 
         let mut ref_pos = usize::from(r.alignment_start().ok()??);
         let mut query_pos = 1;
-        let mut interval_idx = 0;
+        let mut interval_start_idx = 0;
         let curr_ref_name = references[r.reference_sequence_id().ok()??]
             .name()
             .to_string();
         let curr_ref_seq = reference_seqs[&curr_ref_name].sequence();
+        let mut curr_features = Vec::new();
+        let mut curr_interval_idxs = Vec::new();
+
+        let mut intervals_have_error = |v: &[usize]| {
+            v.iter()
+                .for_each(|&interval_idx| interval_has_error[interval_idx] = true);
+        };
 
         // count mismatches, indels, and homopolymers
         for op in r.cigar().ok()?.iter() {
             for _i in 0..op.len() {
-                while interval_idx < intervals.len() && ref_pos >= intervals[interval_idx].stop {
+                // skip intervals that cannot overlap the current reference position
+                while interval_start_idx < intervals.len()
+                    && ref_pos >= intervals[interval_start_idx].stop
+                {
+                    interval_start_idx += 1;
+                }
+                // find the intervals that overlap the current reference position
+                let mut interval_idx = interval_start_idx;
+                curr_features.clear();
+                curr_interval_idxs.clear();
+                while interval_idx < intervals.len() && ref_pos >= intervals[interval_idx].start {
+                    if ref_pos < intervals[interval_idx].stop {
+                        // get feature names of the overlapping intervals
+                        curr_features.push(intervals[interval_idx].val.as_str());
+                        curr_interval_idxs.push(interval_idx);
+                    }
                     interval_idx += 1;
                 }
-                let in_interval =
-                    interval_idx < intervals.len() && ref_pos >= intervals[interval_idx].start;
-                let curr_feature = if in_interval {
-                    Some(
-                        res.feature_stats
-                            .get_mut(intervals[interval_idx].val.as_str())
-                            .unwrap(),
-                    )
-                } else {
-                    None
-                };
 
                 match op.kind() {
                     Kind::SequenceMatch => {
                         res.matches += 1;
-                        if in_interval {
-                            curr_feature.unwrap().matches += 1;
-                        }
+                        curr_features
+                            .iter()
+                            .for_each(|f| res.feature_stats.get_mut(f).unwrap().matches += 1);
                         let c = curr_ref_seq[Position::new(ref_pos)?].to_ascii_uppercase();
                         if c == b'C' || c == b'G' {
                             res.gc_content += 1.0;
@@ -296,10 +307,10 @@ impl<'a> AlnStats<'a> {
                     }
                     Kind::SequenceMismatch => {
                         res.mismatches += 1;
-                        if in_interval {
-                            curr_feature.unwrap().mismatches += 1;
-                            interval_has_error[interval_idx] = true;
-                        }
+                        curr_features
+                            .iter()
+                            .for_each(|f| res.feature_stats.get_mut(f).unwrap().mismatches += 1);
+                        intervals_have_error(&curr_interval_idxs);
                         let c = curr_ref_seq[Position::new(ref_pos)?].to_ascii_uppercase();
                         if c == b'C' || c == b'G' {
                             res.gc_content += 1.0;
@@ -327,17 +338,16 @@ impl<'a> AlnStats<'a> {
                             .all(|c| c == after_ins);
                         if hp_before || hp_after {
                             res.hp_ins += op.len();
-                            if in_interval {
-                                curr_feature.unwrap().hp_ins += op.len();
-                                interval_has_error[interval_idx] = true;
-                            }
+                            curr_features
+                                .iter()
+                                .for_each(|f| res.feature_stats.get_mut(f).unwrap().hp_ins += 1);
                         } else {
                             res.non_hp_ins += op.len();
-                            if in_interval {
-                                curr_feature.unwrap().non_hp_ins += op.len();
-                                interval_has_error[interval_idx] = true;
-                            }
+                            curr_features.iter().for_each(|f| {
+                                res.feature_stats.get_mut(f).unwrap().non_hp_ins += 1
+                            });
                         }
+                        intervals_have_error(&curr_interval_idxs);
                         query_pos += op.len();
                         break;
                     }
@@ -357,17 +367,16 @@ impl<'a> AlnStats<'a> {
                         let hp = curr == before_curr || curr == after_curr;
                         if hp {
                             res.hp_del += 1;
-                            if in_interval {
-                                curr_feature.unwrap().hp_del += 1;
-                                interval_has_error[interval_idx] = true;
-                            }
+                            curr_features
+                                .iter()
+                                .for_each(|f| res.feature_stats.get_mut(f).unwrap().hp_del += 1);
                         } else {
                             res.non_hp_del += 1;
-                            if in_interval {
-                                curr_feature.unwrap().non_hp_del += 1;
-                                interval_has_error[interval_idx] = true;
-                            }
+                            curr_features.iter().for_each(|f| {
+                                res.feature_stats.get_mut(f).unwrap().non_hp_del += 1
+                            });
                         }
+                        intervals_have_error(&curr_interval_idxs);
                         ref_pos += 1;
                     }
                     Kind::SoftClip => {

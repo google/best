@@ -78,29 +78,23 @@ pub fn get_matches(
     seq: &fasta::record::Sequence,
     start: usize,
     end: usize,
-    seqs: &[String],
+    s: &str,
 ) -> Vec<FeatureInterval> {
     let mut res = Vec::new();
 
-    let mut i = start;
-    while i < end {
-        for s in seqs {
-            // convert to zero-indexed
-            if seq.as_ref()[i - 1..(i - 1 + s.len()).min(end - 1)]
-                .iter()
-                .map(|c| c.to_ascii_uppercase())
-                .eq(s.bytes())
-            {
-                res.push(FeatureInterval {
-                    start: i,
-                    stop: i + s.len(),
-                    val: s.to_owned(),
-                });
-                i += s.len() - 1;
-                break;
-            }
+    for i in start..end {
+        // convert to zero-indexed
+        if seq.as_ref()[i - 1..(i - 1 + s.len()).min(end - 1)]
+            .iter()
+            .map(|c| c.to_ascii_uppercase())
+            .eq(s.bytes())
+        {
+            res.push(FeatureInterval {
+                start: i,
+                stop: i + s.len(),
+                val: s.to_owned(),
+            });
         }
-        i += 1;
     }
 
     res

@@ -35,7 +35,7 @@ fn run(
     reference_path: String,
     stats_prefix: String,
     bin_types: Option<Vec<BinType>>,
-    intervals_type: IntervalsType,
+    intervals_types: Vec<IntervalsType>,
     name_column: Option<String>,
 ) {
     // read reference sequences from fasta file
@@ -51,11 +51,6 @@ fn run(
     reader.read_header().unwrap();
     let references = reader.read_reference_sequences().unwrap();
 
-    let mut intervals = None;
-    if let IntervalsType::Bed(ref path) = intervals_type {
-        intervals = Some(Intervals::new(&path));
-    }
-
     // create per alignment stats writer that is shared between threads
     let aln_stats_path = format!("{}.{}", stats_prefix, PER_ALN_STATS_NAME);
     let mut aln_stats_writer = File::create(&aln_stats_path).unwrap();
@@ -70,7 +65,11 @@ fn run(
 
     let summary_yield = Mutex::new(YieldSummary::new(name_column.clone()));
     let summary_identity = Mutex::new(IdentitySummary::new(name_column.clone()));
-    let summary_features = Mutex::new(FeatureSummary::new(name_column.clone()));
+    let summary_features = if intervals_types.is_empty() {
+        None
+    } else {
+        Some(Mutex::new(FeatureSummary::new(name_column.clone())))
+    };
     let summary_cigars = Mutex::new(CigarLenSummary::new(name_column.clone()));
     let summary_bins = bin_types.map(|b| Mutex::new(BinSummary::new(name_column.clone(), b)));
     let total_alns = AtomicUsize::new(0);
@@ -95,24 +94,33 @@ fn run(
             // convert to one-indexed [aln_start, aln_end)
             let aln_start = usize::from(record.alignment_start().unwrap().unwrap());
             let aln_end = aln_start + record.cigar().unwrap().alignment_span();
-            let intervals_vec = match intervals_type {
-                IntervalsType::Homopolymer => {
-                    find_homopolymers(reference_seqs[aln_ref].sequence(), aln_start, aln_end)
-                }
-                IntervalsType::Window(win_len) => get_windows(aln_start, aln_end, win_len),
-                IntervalsType::Border(win_len) => get_borders(aln_start, aln_end, win_len),
-                IntervalsType::Match(ref seqs) => {
-                    get_matches(reference_seqs[aln_ref].sequence(), aln_start, aln_end, seqs)
-                }
-                _ => Vec::new(),
-            };
-            let mut overlap_intervals = match intervals_type {
-                IntervalsType::Bed(_) => intervals
-                    .as_ref()
-                    .unwrap()
-                    .find(aln_ref, aln_start, aln_end),
-                _ => intervals_vec.iter().collect(),
-            };
+            let mut intervals_vec = Vec::new();
+            let mut overlap_intervals = Vec::new();
+            intervals_types
+                .iter()
+                .for_each(|intervals_type| match intervals_type {
+                    IntervalsType::Homopolymer => intervals_vec.extend(find_homopolymers(
+                        reference_seqs[aln_ref].sequence(),
+                        aln_start,
+                        aln_end,
+                    )),
+                    IntervalsType::Window(win_len) => {
+                        intervals_vec.extend(get_windows(aln_start, aln_end, *win_len))
+                    }
+                    IntervalsType::Border(win_len) => {
+                        intervals_vec.extend(get_borders(aln_start, aln_end, *win_len))
+                    }
+                    IntervalsType::Match(seq) => intervals_vec.extend(get_matches(
+                        reference_seqs[aln_ref].sequence(),
+                        aln_start,
+                        aln_end,
+                        seq,
+                    )),
+                    IntervalsType::Bed(intervals) => {
+                        overlap_intervals.extend(intervals.find(aln_ref, aln_start, aln_end))
+                    }
+                });
+            overlap_intervals.extend(&intervals_vec);
             overlap_intervals.sort();
 
             let stats =
@@ -121,9 +129,9 @@ fn run(
             if let Some(stats) = stats {
                 summary_yield.lock().unwrap().update(&stats);
                 summary_identity.lock().unwrap().update(&stats);
-                if intervals_type != IntervalsType::None {
-                    summary_features.lock().unwrap().update(&stats);
-                }
+                summary_features
+                    .as_ref()
+                    .map(|f| f.lock().unwrap().update(&stats));
                 summary_cigars.lock().unwrap().update(&stats);
                 summary_bins
                     .as_ref()
@@ -149,8 +157,8 @@ fn run(
     let mut summary_identity_writer = File::create(&summary_identity_path).unwrap();
     write!(summary_identity_writer, "{}", summary_identity).unwrap();
 
-    if intervals_type != IntervalsType::None {
-        let summary_features = summary_features.into_inner().unwrap();
+    if let Some(f) = summary_features {
+        let summary_features = f.into_inner().unwrap();
         let summary_features_path = format!("{}.{}", stats_prefix, FEATURE_STATS_NAME);
         let mut summary_features_writer = File::create(&summary_features_path).unwrap();
         write!(summary_features_writer, "{}", summary_features).unwrap();
@@ -177,33 +185,24 @@ fn main() {
         .bin_types
         .map(|b| b.iter().map(|s| BinType::from_str(s).unwrap()).collect());
 
-    let interval_features = [
-        args.hp_intervals,
-        args.intervals.is_some(),
-        args.window_intervals.is_some(),
-        args.border_intervals.is_some(),
-        args.match_intervals.is_some(),
-    ];
-    if interval_features.into_iter().filter(|&x| x).count() > 1 {
-        panic!("Only one of the interval specifiers can be used!");
+    let mut intervals_types = Vec::new();
+    if args.intervals_hp {
+        intervals_types.push(IntervalsType::Homopolymer);
     }
-
-    let mut intervals_type = IntervalsType::None;
-    if args.hp_intervals {
-        intervals_type = IntervalsType::Homopolymer;
+    if let Some(paths) = args.intervals_bed {
+        intervals_types.extend(paths.iter().map(|p| IntervalsType::Bed(Intervals::new(p))));
     }
-    if let Some(path) = args.intervals {
-        intervals_type = IntervalsType::Bed(path.clone());
+    if let Some(win_lens) = args.intervals_window {
+        intervals_types.extend(win_lens.into_iter().map(|l| IntervalsType::Window(l)));
     }
-    if let Some(win_len) = args.window_intervals {
-        intervals_type = IntervalsType::Window(win_len);
+    if let Some(win_lens) = args.intervals_border {
+        intervals_types.extend(win_lens.into_iter().map(|l| IntervalsType::Border(l)));
     }
-    if let Some(win_len) = args.border_intervals {
-        intervals_type = IntervalsType::Border(win_len);
-    }
-    if let Some(mut seqs) = args.match_intervals {
-        seqs.iter_mut().for_each(|s| s.make_ascii_uppercase());
-        intervals_type = IntervalsType::Match(seqs);
+    if let Some(seqs) = args.intervals_match {
+        intervals_types.extend(seqs.into_iter().map(|mut s| {
+            s.make_ascii_uppercase();
+            IntervalsType::Match(s)
+        }));
     }
 
     rayon::ThreadPoolBuilder::new()
@@ -216,7 +215,7 @@ fn main() {
         args.reference,
         args.stats_prefix,
         bin_types,
-        intervals_type,
+        intervals_types,
         args.name_column,
     );
 
@@ -224,14 +223,12 @@ fn main() {
     println!("Run time (s): {}", duration.as_secs());
 }
 
-#[derive(Debug, PartialEq, Eq)]
 enum IntervalsType {
-    Bed(String),
+    Bed(Intervals),
     Homopolymer,
     Window(usize),
     Border(usize),
-    Match(Vec<String>),
-    None,
+    Match(String),
 }
 
 #[derive(Parser)]
@@ -256,25 +253,25 @@ struct Args {
     #[clap(short, long, min_values = 1)]
     bin_types: Option<Vec<String>>,
 
-    /// Input intervals BED file.
-    #[clap(short, long)]
-    intervals: Option<String>,
+    /// Use intervals from a BED file.
+    #[clap(long, min_values = 1)]
+    intervals_bed: Option<Vec<String>>,
 
-    /// Use homopolymer regions as intervals instead of BED file.
-    #[clap(short, long)]
-    hp_intervals: bool,
+    /// Use homopolymer regions as intervals.
+    #[clap(long)]
+    intervals_hp: bool,
 
-    /// Use fixed-width windows as intervals instead of BED file.
-    #[clap(short, long)]
-    window_intervals: Option<usize>,
+    /// Use fixed-width windows as intervals.
+    #[clap(long, min_values = 1)]
+    intervals_window: Option<Vec<usize>>,
 
-    /// Use fixed-width window border regions as intervals instead of BED file.
-    #[clap(short, long)]
-    border_intervals: Option<usize>,
+    /// Use fixed-width window border regions as intervals.
+    #[clap(long, min_values = 1)]
+    intervals_border: Option<Vec<usize>>,
 
-    /// Use regions that match any of the subsequences as intervals instead of BED file.
-    #[clap(short, long, min_values = 1)]
-    match_intervals: Option<Vec<String>>,
+    /// Use regions that match any of the specified subsequences as intervals.
+    #[clap(long, min_values = 1)]
+    intervals_match: Option<Vec<String>>,
 
     /// Number of threads. Will be automatically determined if this is set to 0.
     #[clap(short, long, default_value_t = 0usize)]
