@@ -1,6 +1,19 @@
 # best
 Bam Error STats (BEST): analysis of error types in aligned reads.
 
+This is mainly used to assess the quality of reads after aligning them to a
+reference assembly.
+
+## Features
+* Collect overall and per alignment stats
+* Distribution of indel lengths
+* Yield at different empirical Q-value thresholds
+* Bin per read stats to easily examine the distribution of errors for certain
+  types of reads
+* Stats for regions specified by intervals (BED file, homopolymer regions,
+  windows etc.)
+* Multithreading for speed
+
 ## Development
 ### Running
 1. Install [Rust](https://www.rust-lang.org/tools/install).
