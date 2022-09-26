@@ -250,6 +250,14 @@ struct Args {
     /// Types of bins to use for per alignment stats.
     ///
     /// Each bin should be of the format <bin_type>:<step_size>.
+    ///
+    /// Supported bin types:
+    /// q_len (read sequence length),
+    /// subread_passes,
+    /// mapq,
+    /// mean_qual,
+    /// gc_content,
+    /// concordance_qv (phred scale Q-value)
     #[clap(short, long, min_values = 1)]
     bin_types: Option<Vec<String>>,
 
