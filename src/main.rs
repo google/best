@@ -128,23 +128,21 @@ fn run(
             let stats =
                 AlnStats::from_record(&references, &reference_seqs, &record, &overlap_intervals);
 
-            if let Some(stats) = stats {
-                summary_yield.lock().unwrap().update(&stats);
-                summary_identity.lock().unwrap().update(&stats);
-                summary_features
-                    .as_ref()
-                    .map(|f| f.lock().unwrap().update(&stats));
-                summary_cigars.lock().unwrap().update(&stats);
-                summary_bins
-                    .as_ref()
-                    .map(|b| b.lock().unwrap().update(&stats));
+            summary_yield.lock().unwrap().update(&stats);
+            summary_identity.lock().unwrap().update(&stats);
+            summary_features
+                .as_ref()
+                .map(|f| f.lock().unwrap().update(&stats));
+            summary_cigars.lock().unwrap().update(&stats);
+            summary_bins
+                .as_ref()
+                .map(|b| b.lock().unwrap().update(&stats));
 
-                let mut writer = aln_stats_writer.lock().unwrap();
-                if let Some(ref name) = name_column {
-                    write!(writer, "{},{}\n", name, stats.to_csv()).unwrap();
-                } else {
-                    write!(writer, "{}\n", stats.to_csv()).unwrap();
-                }
+            let mut writer = aln_stats_writer.lock().unwrap();
+            if let Some(ref name) = name_column {
+                write!(writer, "{},{}\n", name, stats.to_csv()).unwrap();
+            } else {
+                write!(writer, "{}\n", stats.to_csv()).unwrap();
             }
         });
 

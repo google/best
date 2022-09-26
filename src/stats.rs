@@ -199,34 +199,34 @@ impl<'a> AlnStats<'a> {
         reference_seqs: &FxHashMap<String, fasta::Record>,
         r: &bam::lazy::Record,
         intervals: &[&'a FeatureInterval],
-    ) -> Option<Self> {
+    ) -> Self {
         // note: avoid copying data (especially sequence/quality scores) since they are large
-        let sequence = sam::record::Sequence::try_from(r.sequence()).ok()?;
-        let q_scores = sam::record::QualityScores::try_from(r.quality_scores()).ok()?;
-        let flags = r.flags().ok()?;
-        let data = sam::record::Data::try_from(r.data()).ok()?;
-        let ec_tag = Tag::try_from(*b"ec").ok()?;
+        let sequence = sam::record::Sequence::try_from(r.sequence()).unwrap();
+        let q_scores = sam::record::QualityScores::try_from(r.quality_scores()).unwrap();
+        let flags = r.flags().unwrap();
+        let data = sam::record::Data::try_from(r.data()).unwrap();
+        let ec_tag = Tag::try_from(*b"ec").unwrap();
         let ec = data
             .get(ec_tag)
             .map(|f| f.value().as_float().unwrap() as f64);
-        let np_tag: Tag = Tag::try_from(*b"np").ok()?;
+        let np_tag: Tag = Tag::try_from(*b"np").unwrap();
         let np = data
             .get(np_tag)
             .map(|f| f.value().as_int().unwrap() as usize);
-        let rq_tag: Tag = Tag::try_from(*b"rq").ok()?;
+        let rq_tag: Tag = Tag::try_from(*b"rq").unwrap();
         let rq = data
             .get(rq_tag)
             .map(|f| f.value().as_float().unwrap() as f64);
 
         let mut res = AlnStats {
-            read_name: r.read_name().ok()??.to_string(),
+            read_name: r.read_name().unwrap().unwrap().to_string(),
             q_len: sequence.len(),
             effective_cov: ec,
             subread_passes: np,
             pred_concordance: rq,
             supplementary: flags.is_supplementary(),
             strand_rev: flags.is_reverse_complemented(),
-            mapq: u8::from(r.mapping_quality().ok()??),
+            mapq: u8::from(r.mapping_quality().unwrap().unwrap()),
             mean_qual: mean_qual(q_scores.as_ref()),
             // fill in the rest afterwards
             read_len: 0,
@@ -255,10 +255,10 @@ impl<'a> AlnStats<'a> {
                 .overlaps += 1;
         }
 
-        let mut ref_pos = usize::from(r.alignment_start().ok()??);
+        let mut ref_pos = usize::from(r.alignment_start().unwrap().unwrap());
         let mut query_pos = 1;
         let mut interval_start_idx = 0;
-        let curr_ref_name = references[r.reference_sequence_id().ok()??]
+        let curr_ref_name = references[r.reference_sequence_id().unwrap().unwrap()]
             .name()
             .to_string();
         let curr_ref_seq = reference_seqs[&curr_ref_name].sequence();
@@ -271,7 +271,7 @@ impl<'a> AlnStats<'a> {
         };
 
         // count mismatches, indels, and homopolymers
-        let cigar = sam::record::Cigar::try_from(r.cigar()).ok()?;
+        let cigar = sam::record::Cigar::try_from(r.cigar()).unwrap();
         for op in cigar.iter() {
             for _i in 0..op.len() {
                 // skip intervals that cannot overlap the current reference position
@@ -299,7 +299,7 @@ impl<'a> AlnStats<'a> {
                         curr_features
                             .iter()
                             .for_each(|f| res.feature_stats.get_mut(f).unwrap().matches += 1);
-                        let c = curr_ref_seq[Position::new(ref_pos)?].to_ascii_uppercase();
+                        let c = curr_ref_seq[Position::new(ref_pos).unwrap()].to_ascii_uppercase();
                         if c == b'C' || c == b'G' {
                             res.gc_content += 1.0;
                         }
@@ -312,7 +312,7 @@ impl<'a> AlnStats<'a> {
                             .iter()
                             .for_each(|f| res.feature_stats.get_mut(f).unwrap().mismatches += 1);
                         intervals_have_error(&curr_interval_idxs);
-                        let c = curr_ref_seq[Position::new(ref_pos)?].to_ascii_uppercase();
+                        let c = curr_ref_seq[Position::new(ref_pos).unwrap()].to_ascii_uppercase();
                         if c == b'C' || c == b'G' {
                             res.gc_content += 1.0;
                         }
@@ -322,13 +322,14 @@ impl<'a> AlnStats<'a> {
                     Kind::Insertion => {
                         // can be computed without looping through the number of insertions
                         // this does not modify ref_pos
-                        let before_ins = curr_ref_seq[Position::new(ref_pos)?].to_ascii_uppercase();
+                        let before_ins =
+                            curr_ref_seq[Position::new(ref_pos).unwrap()].to_ascii_uppercase();
                         let after_ins = curr_ref_seq
-                            .get(Position::new(ref_pos + 1)?)
+                            .get(Position::new(ref_pos + 1).unwrap())
                             .unwrap_or(&b'?')
                             .to_ascii_uppercase();
-                        let query_ins = &sequence
-                            [Position::new(query_pos)?..Position::new(query_pos + op.len())?];
+                        let query_ins = &sequence[Position::new(query_pos).unwrap()
+                            ..Position::new(query_pos + op.len()).unwrap()];
                         let hp_before = query_ins
                             .iter()
                             .map(|&c| u8::from(c).to_ascii_uppercase())
@@ -354,14 +355,15 @@ impl<'a> AlnStats<'a> {
                     }
                     Kind::Deletion => {
                         let before_curr = curr_ref_seq
-                            .get(Position::new(ref_pos - 1)?)
+                            .get(Position::new(ref_pos - 1).unwrap())
                             .unwrap_or(&b'?')
                             .to_ascii_uppercase();
                         let after_curr = curr_ref_seq
-                            .get(Position::new(ref_pos + 1)?)
+                            .get(Position::new(ref_pos + 1).unwrap())
                             .unwrap_or(&b'?')
                             .to_ascii_uppercase();
-                        let curr = curr_ref_seq[Position::new(ref_pos)?].to_ascii_uppercase();
+                        let curr =
+                            curr_ref_seq[Position::new(ref_pos).unwrap()].to_ascii_uppercase();
                         if curr == b'C' || curr == b'G' {
                             res.gc_content += 1.0;
                         }
@@ -427,7 +429,7 @@ impl<'a> AlnStats<'a> {
             }
         }
 
-        Some(res)
+        res
     }
 
     pub fn header() -> &'static str {
