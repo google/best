@@ -201,10 +201,10 @@ impl<'a> AlnStats<'a> {
         intervals: &[&'a FeatureInterval],
     ) -> Option<Self> {
         // note: avoid copying data (especially sequence/quality scores) since they are large
-        let sequence = r.sequence().ok()?;
-        let q_scores = r.quality_scores().ok()?;
+        let sequence = sam::record::Sequence::try_from(r.sequence()).ok()?;
+        let q_scores = sam::record::QualityScores::try_from(r.quality_scores()).ok()?;
         let flags = r.flags().ok()?;
-        let data = r.data().ok()?;
+        let data = sam::record::Data::try_from(r.data()).ok()?;
         let ec_tag = Tag::try_from(*b"ec").ok()?;
         let ec = data
             .get(ec_tag)
@@ -271,7 +271,8 @@ impl<'a> AlnStats<'a> {
         };
 
         // count mismatches, indels, and homopolymers
-        for op in r.cigar().ok()?.iter() {
+        let cigar = sam::record::Cigar::try_from(r.cigar()).ok()?;
+        for op in cigar.iter() {
             for _i in 0..op.len() {
                 // skip intervals that cannot overlap the current reference position
                 while interval_start_idx < intervals.len()

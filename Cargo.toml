@@ -8,7 +8,7 @@ description = "Bam Error STats (BEST): analysis of error types in aligned reads.
 [dependencies]
 clap = { version = "^3.2", features = ["derive"] }
 rayon = "^1.5"
-noodles = { version = "^0.24", features = ["sam", "bam", "fasta", "bed", "core"] }
+noodles = { version = "^0.26", features = ["sam", "bam", "fasta", "bed", "core"] }
 fxhash = "^0.2"
 rust-lapper = "^1.0"
 ordered-float = "^3.1"

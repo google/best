@@ -2,8 +2,7 @@ use clap::Parser;
 
 use rayon::prelude::*;
 
-use noodles::bam;
-use noodles::fasta;
+use noodles::{bam, fasta, sam};
 
 use fxhash::FxHashMap;
 
@@ -93,7 +92,10 @@ fn run(
                 .as_str();
             // convert to one-indexed [aln_start, aln_end)
             let aln_start = usize::from(record.alignment_start().unwrap().unwrap());
-            let aln_end = aln_start + record.cigar().unwrap().alignment_span();
+            let aln_end = aln_start
+                + sam::record::Cigar::try_from(record.cigar())
+                    .unwrap()
+                    .alignment_span();
             let mut intervals_vec = Vec::new();
             let mut overlap_intervals = Vec::new();
             intervals_types
