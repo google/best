@@ -386,7 +386,11 @@ impl<'a> AlnStats<'a> {
                         query_pos += op.len();
                         break;
                     }
-                    _ => panic!("Unexpected CIGAR operation!"),
+                    Kind::HardClip => {
+                        // does not require looping through the number of hard clips
+                        break;
+                    }
+                    _ => panic!("Unexpected CIGAR operation: {}", op),
                 }
             }
 
