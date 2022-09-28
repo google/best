@@ -294,25 +294,24 @@ impl<'a> AlnStats<'a> {
                 }
 
                 match op.kind() {
-                    Kind::SequenceMatch => {
-                        res.matches += 1;
-                        curr_features
-                            .iter()
-                            .for_each(|f| res.feature_stats.get_mut(f).unwrap().matches += 1);
+                    Kind::SequenceMatch | Kind::SequenceMismatch | Kind::Match => {
                         let c = curr_ref_seq[Position::new(ref_pos).unwrap()].to_ascii_uppercase();
-                        if c == b'C' || c == b'G' {
-                            res.gc_content += 1.0;
+                        let is_match = op.kind() == Kind::SequenceMatch
+                            || (op.kind() == Kind::Match
+                                && c == u8::from(sequence[Position::new(query_pos).unwrap()])
+                                    .to_ascii_uppercase());
+                        if is_match {
+                            res.matches += 1;
+                            curr_features
+                                .iter()
+                                .for_each(|f| res.feature_stats.get_mut(f).unwrap().matches += 1);
+                        } else {
+                            res.mismatches += 1;
+                            curr_features.iter().for_each(|f| {
+                                res.feature_stats.get_mut(f).unwrap().mismatches += 1
+                            });
+                            intervals_have_error(&curr_interval_idxs);
                         }
-                        query_pos += 1;
-                        ref_pos += 1;
-                    }
-                    Kind::SequenceMismatch => {
-                        res.mismatches += 1;
-                        curr_features
-                            .iter()
-                            .for_each(|f| res.feature_stats.get_mut(f).unwrap().mismatches += 1);
-                        intervals_have_error(&curr_interval_idxs);
-                        let c = curr_ref_seq[Position::new(ref_pos).unwrap()].to_ascii_uppercase();
                         if c == b'C' || c == b'G' {
                             res.gc_content += 1.0;
                         }
@@ -398,6 +397,9 @@ impl<'a> AlnStats<'a> {
                 }
                 Kind::SequenceMismatch => {
                     *res.cigar_len_stats.entry((op.len(), b'X')).or_insert(0) += 1;
+                }
+                Kind::Match => {
+                    *res.cigar_len_stats.entry((op.len(), b'M')).or_insert(0) += 1;
                 }
                 Kind::Insertion => {
                     *res.cigar_len_stats.entry((op.len(), b'I')).or_insert(0) += 1;
