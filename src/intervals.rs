@@ -44,15 +44,23 @@ pub fn find_homopolymers(
     res
 }
 
-pub fn get_windows(start: usize, end: usize, win_len: usize) -> Vec<FeatureInterval> {
+pub fn get_windows(start: usize, end: usize, win_len: usize, pos: bool) -> Vec<FeatureInterval> {
     let mut res = Vec::new();
 
     for i in (start..end).step_by(win_len) {
-        res.push(FeatureInterval {
-            start: i,
-            stop: (i + win_len).min(end),
-            val: format!("window_{}", win_len),
-        });
+        if pos {
+            res.push(FeatureInterval {
+                start: i,
+                stop: (i + win_len).min(end),
+                val: format!("window_{}_pos_{}", win_len, i - start),
+            });
+        } else {
+            res.push(FeatureInterval {
+                start: i,
+                stop: (i + win_len).min(end),
+                val: format!("window_{}", win_len),
+            });
+        }
     }
 
     res

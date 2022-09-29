@@ -126,7 +126,10 @@ fn run(
                         aln_end,
                     )),
                     IntervalsType::Window(win_len) => {
-                        intervals_vec.extend(get_windows(aln_start, aln_end, *win_len))
+                        intervals_vec.extend(get_windows(aln_start, aln_end, *win_len, false))
+                    }
+                    IntervalsType::WindowPos(win_len) => {
+                        intervals_vec.extend(get_windows(aln_start, aln_end, *win_len, true))
                     }
                     IntervalsType::Border(win_len) => {
                         intervals_vec.extend(get_borders(aln_start, aln_end, *win_len))
@@ -216,6 +219,9 @@ fn main() {
     if let Some(win_lens) = args.intervals_window {
         intervals_types.extend(win_lens.into_iter().map(|l| IntervalsType::Window(l)));
     }
+    if let Some(win_lens) = args.intervals_window_pos {
+        intervals_types.extend(win_lens.into_iter().map(|l| IntervalsType::WindowPos(l)));
+    }
     if let Some(win_lens) = args.intervals_border {
         intervals_types.extend(win_lens.into_iter().map(|l| IntervalsType::Border(l)));
     }
@@ -249,6 +255,7 @@ enum IntervalsType {
     Bed(Intervals),
     Homopolymer,
     Window(usize),
+    WindowPos(usize),
     Border(usize),
     Match(String),
 }
@@ -298,6 +305,10 @@ struct Args {
     /// Use fixed-width windows as intervals.
     #[clap(long, min_values = 1)]
     intervals_window: Option<Vec<usize>>,
+
+    /// Use fixed-width windows with positions as intervals.
+    #[clap(long, min_values = 1)]
+    intervals_window_pos: Option<Vec<usize>>,
 
     /// Use fixed-width window border regions as intervals.
     #[clap(long, min_values = 1)]
