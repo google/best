@@ -30,6 +30,7 @@ name = "best"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "flate2",
  "fxhash",
  "noodles",
  "ordered-float",

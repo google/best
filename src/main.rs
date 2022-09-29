@@ -6,8 +6,11 @@ use noodles::{bam, fasta, sam};
 
 use fxhash::FxHashMap;
 
+use flate2::read::GzDecoder;
+use flate2::write::GzEncoder;
+
 use std::fs::File;
-use std::io::{BufReader, Write};
+use std::io::{BufReader, BufWriter, Read, Write};
 use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
@@ -22,7 +25,7 @@ use bed::*;
 mod intervals;
 use intervals::*;
 
-const PER_ALN_STATS_NAME: &str = "per_aln_stats.csv";
+const PER_ALN_STATS_NAME: &str = "per_aln_stats.csv.gz";
 const YIELD_STATS_NAME: &str = "summary_yield_stats.csv";
 const IDENTITY_STATS_NAME: &str = "summary_identity_stats.csv";
 const FEATURE_STATS_NAME: &str = "summary_feature_stats.csv";
@@ -39,7 +42,15 @@ fn run(
     output_per_aln_stats: bool,
 ) {
     // read reference sequences from fasta file
-    let mut ref_reader = fasta::Reader::new(BufReader::new(File::open(reference_path).unwrap()));
+    let mut ref_reader = {
+        let f = File::open(&reference_path).unwrap();
+        let r: Box<dyn Read> = if reference_path.ends_with(".gz") {
+            Box::new(GzDecoder::new(f))
+        } else {
+            Box::new(f)
+        };
+        fasta::Reader::new(BufReader::new(r))
+    };
     let reference_seqs: FxHashMap<String, fasta::Record> = ref_reader
         .records()
         .map(|r| r.unwrap())
@@ -54,7 +65,10 @@ fn run(
     // create per alignment stats writer that is shared between threads
     let aln_stats_path = format!("{}.{}", stats_prefix, PER_ALN_STATS_NAME);
     let aln_stats_writer = if output_per_aln_stats {
-        let mut w = File::create(&aln_stats_path).unwrap();
+        let mut w = GzEncoder::new(
+            BufWriter::new(File::create(&aln_stats_path).unwrap()),
+            flate2::Compression::default(),
+        );
         write!(
             w,
             "{}{}\n",

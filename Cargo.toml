@@ -12,3 +12,4 @@ noodles = { version = "^0.26", features = ["sam", "bam", "fasta", "bed", "core"]
 fxhash = "^0.2"
 rust-lapper = "^1.0"
 ordered-float = "^3.1"
+flate2 = "^1.0"
