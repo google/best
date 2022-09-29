@@ -259,7 +259,7 @@ struct Args {
     /// Input BAM file.
     input: String,
 
-    /// Input reference FASTA file.
+    /// Input reference FASTA file. Can be gzipped.
     reference: String,
 
     /// Prefix for output files that contain statistics.
