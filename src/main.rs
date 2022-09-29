@@ -36,6 +36,7 @@ fn run(
     bin_types: Option<Vec<BinType>>,
     intervals_types: Vec<IntervalsType>,
     name_column: Option<String>,
+    output_per_aln_stats: bool,
 ) {
     // read reference sequences from fasta file
     let mut ref_reader = fasta::Reader::new(BufReader::new(File::open(reference_path).unwrap()));
@@ -52,15 +53,19 @@ fn run(
 
     // create per alignment stats writer that is shared between threads
     let aln_stats_path = format!("{}.{}", stats_prefix, PER_ALN_STATS_NAME);
-    let mut aln_stats_writer = File::create(&aln_stats_path).unwrap();
-    write!(
-        aln_stats_writer,
-        "{}{}\n",
-        if name_column.is_some() { "name," } else { "" },
-        AlnStats::header()
-    )
-    .unwrap();
-    let aln_stats_writer = Mutex::new(aln_stats_writer);
+    let aln_stats_writer = if output_per_aln_stats {
+        let mut w = File::create(&aln_stats_path).unwrap();
+        write!(
+            w,
+            "{}{}\n",
+            if name_column.is_some() { "name," } else { "" },
+            AlnStats::header()
+        )
+        .unwrap();
+        Some(Mutex::new(w))
+    } else {
+        None
+    };
 
     let summary_yield = Mutex::new(YieldSummary::new(name_column.clone()));
     let summary_identity = Mutex::new(IdentitySummary::new(name_column.clone()));
@@ -138,11 +143,13 @@ fn run(
                 .as_ref()
                 .map(|b| b.lock().unwrap().update(&stats));
 
-            let mut writer = aln_stats_writer.lock().unwrap();
-            if let Some(ref name) = name_column {
-                write!(writer, "{},{}\n", name, stats.to_csv()).unwrap();
-            } else {
-                write!(writer, "{}\n", stats.to_csv()).unwrap();
+            if let Some(ref w) = aln_stats_writer {
+                let mut w = w.lock().unwrap();
+                if let Some(ref name) = name_column {
+                    write!(w, "{},{}\n", name, stats.to_csv()).unwrap();
+                } else {
+                    write!(w, "{}\n", stats.to_csv()).unwrap();
+                }
             }
         });
 
@@ -217,6 +224,7 @@ fn main() {
         bin_types,
         intervals_types,
         args.name_column,
+        !args.no_per_aln_stats,
     );
 
     let duration = start_time.elapsed();
@@ -246,6 +254,10 @@ struct Args {
     /// Add column with a specific name in CSV outputs.
     #[clap(short, long)]
     name_column: Option<String>,
+
+    /// Turn off outputting per alignment stats.
+    #[clap(long)]
+    no_per_aln_stats: bool,
 
     /// Types of bins to use for per alignment stats.
     ///
