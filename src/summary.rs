@@ -6,6 +6,8 @@ use ordered_float::OrderedFloat;
 
 use crate::stats::*;
 
+// important to ensure that summary stats are sorted so output order is deterministic
+
 pub struct YieldSummary {
     name_column: Option<String>,
     /// (reads, bases)

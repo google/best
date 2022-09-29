@@ -115,6 +115,7 @@ fn run(
                 + sam::record::Cigar::try_from(record.cigar())
                     .unwrap()
                     .alignment_span();
+            // get all the intervals relevant for the current alignment record
             let mut intervals_vec = Vec::new();
             let mut overlap_intervals = Vec::new();
             intervals_types

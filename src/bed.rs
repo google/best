@@ -14,6 +14,7 @@ pub struct Intervals {
 }
 
 impl Intervals {
+    /// Create a new collection of intervals from a BED file.
     pub fn new(bed_path: &str) -> Self {
         let mut intervals = FxHashMap::default();
         let mut features = FxHashSet::default();
@@ -48,6 +49,7 @@ impl Intervals {
         }
     }
 
+    /// Find intervals that intersect a given interval.
     pub fn find(&self, chrom: &str, start: usize, end: usize) -> Vec<&FeatureInterval> {
         self.intervals
             .get(chrom)

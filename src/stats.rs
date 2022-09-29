@@ -43,6 +43,7 @@ pub struct AlnStats<'a> {
     pub cigar_len_stats: FxHashMap<(usize, u8), usize>,
 }
 
+/// Per-read attributes that can be binned.
 #[derive(Copy, Clone)]
 pub enum BinType {
     QLen(usize),
@@ -487,6 +488,9 @@ impl<'a> AlnStats<'a> {
     }
 }
 
+/// Compute the Phred scale Q-value for a certain concordance/identity.
+///
+/// Perfect match will have a Q-value of 75.
 pub fn concordance_qv(concordance: f64, has_errors: bool) -> f64 {
     if has_errors {
         -10.0f64 * (1.0f64 - concordance).log10()

@@ -14,6 +14,9 @@ reference assembly.
   windows etc.)
 * Multithreading for speed
 
+## Usage
+The [`best` Usage Guide](Usage.md) gives an overview of how to use `best`.
+
 ## Development
 ### Running
 1. Install [Rust](https://www.rust-lang.org/tools/install).

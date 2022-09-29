@@ -3,6 +3,7 @@ use noodles::fasta;
 
 use crate::bed::FeatureInterval;
 
+/// Find homopolymers in a sequence to use as intervals.
 pub fn find_homopolymers(
     seq: &fasta::record::Sequence,
     start: usize,
@@ -44,6 +45,7 @@ pub fn find_homopolymers(
     res
 }
 
+/// Get fixed-length windows as intervals.
 pub fn get_windows(start: usize, end: usize, win_len: usize, pos: bool) -> Vec<FeatureInterval> {
     let mut res = Vec::new();
 
@@ -68,6 +70,7 @@ pub fn get_windows(start: usize, end: usize, win_len: usize, pos: bool) -> Vec<F
 
 const BORDER_CONTEXT: usize = 1;
 
+/// Get small intervals that represent the region near fixed-width window borders.
 pub fn get_borders(start: usize, end: usize, win_len: usize) -> Vec<FeatureInterval> {
     let mut res = Vec::new();
 
@@ -82,6 +85,7 @@ pub fn get_borders(start: usize, end: usize, win_len: usize) -> Vec<FeatureInter
     res
 }
 
+/// Get regions that match a sequence as intervals.
 pub fn get_matches(
     seq: &fasta::record::Sequence,
     start: usize,
