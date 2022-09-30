@@ -296,6 +296,10 @@ struct Args {
     bin_types: Option<Vec<String>>,
 
     /// Use intervals from a BED file.
+    ///
+    /// The BED file should have the columns chrom, start, stop, and feature.
+    /// The feature column is optional.
+    /// It allows stats to be gathered separately for different types of intervals.
     #[clap(long, min_values = 1)]
     intervals_bed: Option<Vec<String>>,
 

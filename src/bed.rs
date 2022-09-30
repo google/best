@@ -27,7 +27,7 @@ impl Intervals {
             // convert to 1-indexed [start, stop)
             let start = fields.next().unwrap().parse::<usize>().unwrap() + 1;
             let stop = fields.next().unwrap().parse::<usize>().unwrap() + 1;
-            let feature = fields.next().unwrap().to_owned();
+            let feature = fields.next().unwrap_or("none").to_owned();
 
             intervals
                 .entry(chrom)
