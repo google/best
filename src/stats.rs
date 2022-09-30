@@ -393,6 +393,7 @@ impl<'a> AlnStats<'a> {
                     }
                     Kind::Skip => {
                         // does not require looping through the number of skip operations
+                        ref_pos += op.len();
                         break;
                     }
                     _ => panic!("Unexpected CIGAR operation: {}", op),
