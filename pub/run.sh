@@ -12,23 +12,21 @@ wget -P reference wget -P reference https://s3-us-west-2.amazonaws.com/human-pan
 REFERENCE=reference/chm13.draft_v1.0.fasta.gz
 
 function download_bam {
-  N_LINES=${1}
+  SUBSAMPLE=${1}
   DIRECTORY=${2}
   URL=${3}
   curl -P ${DIRECTORY} ${URL} | \
-  samtools view -h | \
-  shuf -n ${N_LINES} | \
-  samtools view -bh > ${DIRECTORY}/$(basename ${URL})
+  samtools view -s ${SUBSAMPLE} -bh > ${DIRECTORY}/$(basename ${URL})
 }
 
 # Illumina
-download_bam 100000 illumina https://s3-us-west-2.amazonaws.com/human-pangenomics/T2T/CHM13/assemblies/alignments/chm13.draft_v1.0.pcrfree.bam
+download_bam 0.1 illumina https://s3-us-west-2.amazonaws.com/human-pangenomics/T2T/CHM13/assemblies/alignments/chm13.draft_v1.0.pcrfree.bam
 
 # ONT
-download_bam 1000 ont https://s3-us-west-2.amazonaws.com/human-pangenomics/T2T/CHM13/assemblies/alignments/chm13.draft_v1.0.ont_guppy_3.6.0.wm_2.01.pri.bam
+download_bam 0.1 ont https://s3-us-west-2.amazonaws.com/human-pangenomics/T2T/CHM13/assemblies/alignments/chm13.draft_v1.0.ont_guppy_3.6.0.wm_2.01.pri.bam
 
 # PacBio HiFi
-download_bam 10000 pacbio https://s3-us-west-2.amazonaws.com/human-pangenomics/T2T/CHM13/assemblies/alignments/chm13.draft_v1.0.hifi_20k.wm_2.01.pri.bam
+download_bam 0.1 pacbio https://s3-us-west-2.amazonaws.com/human-pangenomics/T2T/CHM13/assemblies/alignments/chm13.draft_v1.0.hifi_20k.wm_2.01.pri.bam
 
 #==========#
 # Run Best #
