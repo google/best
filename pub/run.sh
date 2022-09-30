@@ -8,10 +8,8 @@ mkdir reference illumina ont pacbio
 
 # Download the CHM13 v1.0 draft
 wget -P reference wget -P reference https://s3-us-west-2.amazonaws.com/human-pangenomics/T2T/CHM13/assemblies/chm13.draft_v1.0.fasta.gz
-gzip -dc reference/chm13.draft_v1.0.fasta.gz > reference/chm13.draft_v1.0.fasta
 
-N_LINES=10000
-REFERENCE=reference/chm13.draft_v1.0.fasta
+REFERENCE=reference/chm13.draft_v1.0.fasta.gz
 
 function download_bam {
   N_LINES=${1}
@@ -19,7 +17,7 @@ function download_bam {
   URL=${3}
   curl -P ${DIRECTORY} ${URL} | \
   samtools view -h | \
-  head -n ${N_LINES} | \
+  shuf -n ${N_LINES} | \
   samtools view -bh > ${DIRECTORY}/$(basename ${URL})
 }
 
