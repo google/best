@@ -24,9 +24,9 @@ ARGS:
 OPTIONS:
     -b, --bin-types <BIN_TYPES>...
             Types of bins to use for per alignment stats.
-            
+
             Each bin should be of the format <bin_type>:<step_size>.
-            
+
             Supported bin types: q_len (read sequence length), subread_passes, mapq, mean_qual,
             gc_content, concordance_qv (phred scale Q-value)
 
@@ -34,7 +34,10 @@ OPTIONS:
             Print help information
 
         --intervals-bed <INTERVALS_BED>...
-            Use intervals from a BED file
+            Use intervals from a BED file.
+
+            The BED file should have the columns chrom, start, stop, and feature. The feature column
+            is optional. It allows stats to be gathered separately for different types of intervals.
 
         --intervals-border <INTERVALS_BORDER>...
             Use fixed-width window border regions as intervals
@@ -59,7 +62,7 @@ OPTIONS:
 
     -t, --threads <THREADS>
             Number of threads. Will be automatically determined if this is set to 0
-            
+
             [default: 0]
 
     -V, --version
