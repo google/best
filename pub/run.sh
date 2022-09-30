@@ -15,7 +15,7 @@ function download_bam {
   SUBSAMPLE=${1}
   DIRECTORY=${2}
   URL=${3}
-  curl -P ${DIRECTORY} ${URL} | \
+  curl ${URL} | \
   samtools view -s ${SUBSAMPLE} -bh > ${DIRECTORY}/$(basename ${URL})
 }
 
