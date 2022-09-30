@@ -391,6 +391,10 @@ impl<'a> AlnStats<'a> {
                         // does not require looping through the number of hard clips
                         break;
                     }
+                    Kind::Skip => {
+                        // does not require looping through the number of skip operations
+                        break;
+                    }
                     _ => panic!("Unexpected CIGAR operation: {}", op),
                 }
             }
