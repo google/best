@@ -7,6 +7,5 @@ BAM_CONCORDANCE=~/hg002-ccs/concordance/bamConcordance
 echo "bamConcordance"
 time ${BAM_CONCORDANCE} ${REFERENCE} ${BAM_FILE} pacbio/bamConcordance.csv
 
-POMOXIS="python3 ~/pomoxis/pomoxis/stats_from_bam.py"
 echo "pomoxis"
-time ${POMOXIS} ${BAM_FILE} -o pacbio/pomoxis.tsv -s pacbio/pomoxis_summary.txt -t 4
+time stats_from_bam ${BAM_FILE} -o pacbio/pomoxis.tsv -s pacbio/pomoxis_summary.txt -t 4
