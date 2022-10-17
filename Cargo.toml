@@ -3,7 +3,7 @@ name = "best"
 authors = ["Daniel Liu"]
 version = "0.1.0"
 edition = "2021"
-description = "Bam Error STats (BEST): analysis of error types in aligned reads."
+description = "Bam Error Stats Tool (best): analysis of error types in aligned reads."
 
 [dependencies]
 clap = { version = "^3.2", features = ["derive"] }

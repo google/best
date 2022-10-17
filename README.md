@@ -1,5 +1,5 @@
 # best
-Bam Error STats (BEST): analysis of error types in aligned reads.
+Bam Error Stats Tool (best): analysis of error types in aligned reads.
 
 This is mainly used to assess the quality of reads after aligning them to a
 reference assembly.
@@ -35,4 +35,6 @@ cargo fmt
 
 ### Comparing
 Remember to pass the `-t 1` option to ensure that only one thread is used for
-testing.
+testing. Best generally tries to ensure the order of outputs is deterministic
+with multiple threads, but the order of per-alignment stats is arbitrary unless
+only one thread is used.
