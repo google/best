@@ -22,8 +22,9 @@ The per-alignment stats file is gzipped to save space. The
 consecutive insertions and deletions. The `output.summary_identity_stats.csv`
 file contains some general stats on the error rates across all alignments.
 The `output.summary_qual_score_stats.csv` file contains the empirical Q-value
-calculated from matches and mismatches for each corresponding quality score. If
-intervals are specified, then this is computed per interval feature.
+calculated from matches and mismatches for each corresponding quality score.
+The `all_alignments` feature indicates the quality score stats across all
+alignments. If intervals are specified, then this is computed per interval feature.
 The `output.summary_yield_stats.csv` contains the yield (number of reads/bases)
 above certain quality thresholds.
 
