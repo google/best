@@ -300,7 +300,11 @@ impl<'a> AlnStats<'a> {
             .map(|f| f.value().as_float().unwrap() as f64);
 
         let mut res = AlnStats {
-            read_name: r.read_name().unwrap().unwrap().to_string(),
+            read_name: r
+                .read_name()
+                .expect("Error parsing read name! Perhaps it contains an '@'?")
+                .unwrap()
+                .to_string(),
             q_len: sequence.len(),
             effective_cov: ec,
             subread_passes: np,
