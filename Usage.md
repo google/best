@@ -14,13 +14,17 @@ This will use 4 threads to collect stats and generate the following files:
 output.per_aln_stats.csv.gz
 output.summary_cigar_stats.csv
 output.summary_identity_stats.csv
+output.summary_qual_score_stats.csv
 output.summary_yield_stats.csv
 ```
 The per-alignment stats file is gzipped to save space. The
 `output.summary_cigar_stats.csv` file contains the distribution of lengths of
 consecutive insertions and deletions. The `output.summary_identity_stats.csv`
-file contains some general stats on the error rates across all alignments. The
-`output.summary_yield_stats.csv` contains the yield (number of reads/bases)
+file contains some general stats on the error rates across all alignments.
+The `output.summary_qual_score_stats.csv` file contains the empirical Q-value
+calculated from matches and mismatches for each corresponding quality score. If
+intervals are specified, then this is computed per interval feature.
+The `output.summary_yield_stats.csv` contains the yield (number of reads/bases)
 above certain quality thresholds.
 
 We can collect even more data in one run of `best`. If we run

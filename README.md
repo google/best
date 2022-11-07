@@ -12,6 +12,7 @@ reference assembly.
   types of reads
 * Stats for regions specified by intervals (BED file, homopolymer regions,
   windows etc.)
+* Stats for quality scores vs empirical Q-values
 * Multithreading for speed
 
 ## Usage
