@@ -85,14 +85,22 @@ impl QualScoreStats {
         }
     }
 
-    pub fn empirical_qv(&self) -> Vec<f64> {
+    pub fn empirical_qv(&self) -> Vec<(usize, f64)> {
         self.stats
             .iter()
-            .map(|&(matches, mismatches)| {
-                concordance_qv(
-                    (matches as f64) / ((matches + mismatches) as f64),
-                    mismatches != 0,
-                )
+            .enumerate()
+            .filter_map(|(i, &(matches, mismatches))| {
+                if matches == 0 && mismatches == 0 {
+                    None
+                } else {
+                    Some((
+                        i,
+                        concordance_qv(
+                            (matches as f64) / ((matches + mismatches) as f64),
+                            mismatches != 0,
+                        ),
+                    ))
+                }
             })
             .collect()
     }

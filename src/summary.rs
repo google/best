@@ -395,7 +395,7 @@ impl fmt::Display for QualScoreSummary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
             f,
-            "{}feature,qual_score,identity_qv",
+            "{}feature,qual_score,empirical_qv",
             if self.name_column.is_some() {
                 "name,"
             } else {
@@ -405,8 +405,7 @@ impl fmt::Display for QualScoreSummary {
         let mut v = self.feature_qual.iter().collect::<Vec<_>>();
         v.sort_by_key(|x| x.0);
         for (feature, stats) in v.into_iter() {
-            let stats = stats.empirical_qv();
-            for (i, qv) in stats.into_iter().enumerate() {
+            for (i, qv) in stats.empirical_qv().into_iter() {
                 writeln!(
                     f,
                     "{}{},{},{:.2}",
