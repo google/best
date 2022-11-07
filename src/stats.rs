@@ -60,6 +60,50 @@ pub struct AlnStats<'a> {
     pub gc_del: usize,
     pub feature_stats: FxHashMap<&'a str, FeatureStats>,
     pub cigar_len_stats: FxHashMap<(usize, u8), usize>,
+    pub q_score_stats: QualScoreStats,
+}
+
+/// Stats on the number of matches and mismatches for each quality score.
+#[derive(Debug, Clone)]
+pub struct QualScoreStats {
+    stats: Vec<(usize, usize)>, // (match, mismatch)
+}
+
+impl QualScoreStats {
+    pub fn assign_add(&mut self, o: &Self) {
+        self.stats.iter_mut().zip(&o.stats).for_each(|(q, o)| {
+            q.0 += o.0;
+            q.1 += o.1;
+        });
+    }
+
+    pub fn increment(&mut self, q_score: usize, is_match: bool) {
+        if is_match {
+            self.stats[q_score].0 += 1;
+        } else {
+            self.stats[q_score].1 += 1;
+        }
+    }
+
+    pub fn empirical_qv(&self) -> Vec<f64> {
+        self.stats
+            .iter()
+            .map(|&(matches, mismatches)| {
+                concordance_qv(
+                    (matches as f64) / ((matches + mismatches) as f64),
+                    mismatches != 0,
+                )
+            })
+            .collect()
+    }
+}
+
+impl Default for QualScoreStats {
+    fn default() -> Self {
+        Self {
+            stats: vec![(0usize, 0usize); 76],
+        }
+    }
 }
 
 /// Per-read attributes that can be binned.
@@ -186,6 +230,8 @@ pub struct FeatureStats {
     pub non_hp_del: usize,
     pub hp_ins: usize,
     pub hp_del: usize,
+    pub total_qual_error: f64,
+    pub q_score_stats: QualScoreStats,
 }
 
 impl FeatureStats {
@@ -198,6 +244,8 @@ impl FeatureStats {
         self.non_hp_del += o.non_hp_del;
         self.hp_ins += o.hp_ins;
         self.hp_del += o.hp_del;
+        self.total_qual_error += o.total_qual_error;
+        self.q_score_stats.assign_add(&o.q_score_stats);
     }
 
     pub fn num_bases(&self) -> usize {
@@ -210,6 +258,11 @@ impl FeatureStats {
 
     pub fn identity(&self) -> f64 {
         (self.matches as f64) / ((self.matches + self.num_errors()) as f64)
+    }
+
+    pub fn mean_qual(&self) -> f64 {
+        // only include quality scores from matches and mismatches
+        error_to_qual(self.total_qual_error / ((self.matches + self.mismatches) as f64))
     }
 }
 
@@ -265,6 +318,7 @@ impl<'a> AlnStats<'a> {
             gc_del: 0,
             feature_stats: FxHashMap::default(),
             cigar_len_stats: FxHashMap::default(),
+            q_score_stats: QualScoreStats::default(),
         };
 
         let mut interval_has_error = vec![false; intervals.len()];
@@ -320,15 +374,25 @@ impl<'a> AlnStats<'a> {
                             || (op.kind() == Kind::Match
                                 && c == u8::from(sequence[Position::new(query_pos).unwrap()])
                                     .to_ascii_uppercase());
+                        let q_score = u8::from(q_scores[Position::new(query_pos).unwrap()]);
+                        let qual_error = qual_to_error(q_score);
                         if is_match {
                             res.matches += 1;
-                            curr_features
-                                .iter()
-                                .for_each(|f| res.feature_stats.get_mut(f).unwrap().matches += 1);
+                            res.q_score_stats.increment(q_score as usize, true);
+                            curr_features.iter().for_each(|f| {
+                                let stats = res.feature_stats.get_mut(f).unwrap();
+                                stats.matches += 1;
+                                stats.total_qual_error += qual_error;
+                                stats.q_score_stats.increment(q_score as usize, true);
+                            });
                         } else {
                             res.mismatches += 1;
+                            res.q_score_stats.increment(q_score as usize, false);
                             curr_features.iter().for_each(|f| {
-                                res.feature_stats.get_mut(f).unwrap().mismatches += 1
+                                let stats = res.feature_stats.get_mut(f).unwrap();
+                                stats.mismatches += 1;
+                                stats.total_qual_error += qual_error;
+                                stats.q_score_stats.increment(q_score as usize, false);
                             });
                             intervals_have_error(&curr_interval_idxs);
                         }
@@ -359,13 +423,13 @@ impl<'a> AlnStats<'a> {
                             .all(|c| c == after_ins);
                         if hp_before || hp_after {
                             res.hp_ins += op.len();
-                            curr_features
-                                .iter()
-                                .for_each(|f| res.feature_stats.get_mut(f).unwrap().hp_ins += 1);
+                            curr_features.iter().for_each(|f| {
+                                res.feature_stats.get_mut(f).unwrap().hp_ins += op.len()
+                            });
                         } else {
                             res.non_hp_ins += op.len();
                             curr_features.iter().for_each(|f| {
-                                res.feature_stats.get_mut(f).unwrap().non_hp_ins += 1
+                                res.feature_stats.get_mut(f).unwrap().non_hp_ins += op.len()
                             });
                         }
                         intervals_have_error(&curr_interval_idxs);
@@ -523,10 +587,18 @@ pub fn concordance_qv(concordance: f64, has_errors: bool) -> f64 {
     }
 }
 
+fn qual_to_error(q: u8) -> f64 {
+    10.0f64.powf(-(q as f64) / 10.0f64)
+}
+
+fn error_to_qual(e: f64) -> f64 {
+    -10.0f64 * e.log10()
+}
+
 fn mean_qual(q_scores: &[sam::record::quality_scores::Score]) -> u8 {
     let sum_q = q_scores
         .iter()
-        .map(|&q| 10.0f64.powf(-(u8::from(q) as f64) / 10.0f64))
+        .map(|&q| qual_to_error(u8::from(q)))
         .sum::<f64>();
-    (-10.0f64 * (sum_q / (q_scores.len() as f64)).log10()).round() as u8
+    error_to_qual(sum_q / (q_scores.len() as f64)).round() as u8
 }

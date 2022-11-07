@@ -50,6 +50,7 @@ const IDENTITY_STATS_NAME: &str = "summary_identity_stats.csv";
 const FEATURE_STATS_NAME: &str = "summary_feature_stats.csv";
 const CIGAR_STATS_NAME: &str = "summary_cigar_stats.csv";
 const BIN_STATS_NAME: &str = "summary_bin_stats.csv";
+const QUAL_SCORE_STATS_NAME: &str = "summary_qual_score_stats.csv";
 
 fn run(
     input_path: String,
@@ -109,6 +110,7 @@ fn run(
     };
     let summary_cigars = Mutex::new(CigarLenSummary::new(name_column.clone()));
     let summary_bins = bin_types.map(|b| Mutex::new(BinSummary::new(name_column.clone(), b)));
+    let summary_qual_score = Mutex::new(QualScoreSummary::new(name_column.clone()));
     let total_alns = AtomicUsize::new(0);
 
     // lazily read records to shift parsing work to individual threads
@@ -179,6 +181,7 @@ fn run(
             summary_bins
                 .as_ref()
                 .map(|b| b.lock().unwrap().update(&stats));
+            summary_qual_score.lock().unwrap().update(&stats);
 
             if let Some(ref w) = aln_stats_writer {
                 let mut w = w.lock().unwrap();
@@ -190,35 +193,44 @@ fn run(
             }
         });
 
-    let summary_yield = summary_yield.into_inner().unwrap();
-    let summary_yield_path = format!("{}.{}", stats_prefix, YIELD_STATS_NAME);
-    let mut summary_yield_writer = File::create(&summary_yield_path).unwrap();
-    write!(summary_yield_writer, "{}", summary_yield).unwrap();
+    write_summary(
+        summary_yield.into_inner().unwrap(),
+        &stats_prefix,
+        YIELD_STATS_NAME,
+    );
 
-    let mut summary_identity = summary_identity.into_inner().unwrap();
-    summary_identity.total_alns = total_alns.into_inner();
-    let summary_identity_path = format!("{}.{}", stats_prefix, IDENTITY_STATS_NAME);
-    let mut summary_identity_writer = File::create(&summary_identity_path).unwrap();
-    write!(summary_identity_writer, "{}", summary_identity).unwrap();
+    summary_identity.lock().unwrap().total_alns = total_alns.into_inner();
+    write_summary(
+        summary_identity.into_inner().unwrap(),
+        &stats_prefix,
+        IDENTITY_STATS_NAME,
+    );
 
     if let Some(f) = summary_features {
-        let summary_features = f.into_inner().unwrap();
-        let summary_features_path = format!("{}.{}", stats_prefix, FEATURE_STATS_NAME);
-        let mut summary_features_writer = File::create(&summary_features_path).unwrap();
-        write!(summary_features_writer, "{}", summary_features).unwrap();
+        write_summary(f.into_inner().unwrap(), &stats_prefix, FEATURE_STATS_NAME);
     }
 
-    let summary_cigars = summary_cigars.into_inner().unwrap();
-    let summary_cigars_path = format!("{}.{}", stats_prefix, CIGAR_STATS_NAME);
-    let mut summary_cigars_writer = File::create(&summary_cigars_path).unwrap();
-    write!(summary_cigars_writer, "{}", summary_cigars).unwrap();
+    write_summary(
+        summary_cigars.into_inner().unwrap(),
+        &stats_prefix,
+        CIGAR_STATS_NAME,
+    );
 
     if let Some(b) = summary_bins {
-        let summary_bins = b.into_inner().unwrap();
-        let summary_bins_path = format!("{}.{}", stats_prefix, BIN_STATS_NAME);
-        let mut summary_bins_writer = File::create(&summary_bins_path).unwrap();
-        write!(summary_bins_writer, "{}", summary_bins).unwrap();
+        write_summary(b.into_inner().unwrap(), &stats_prefix, BIN_STATS_NAME);
     }
+
+    write_summary(
+        summary_qual_score.into_inner().unwrap(),
+        &stats_prefix,
+        QUAL_SCORE_STATS_NAME,
+    );
+}
+
+fn write_summary<D: std::fmt::Display>(s: D, prefix: &str, name: &str) {
+    let summary_path = format!("{}.{}", prefix, name);
+    let mut summary_writer = File::create(&summary_path).unwrap();
+    write!(summary_writer, "{}", s).unwrap();
 }
 
 fn main() {

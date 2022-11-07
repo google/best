@@ -188,7 +188,7 @@ impl FeatureSummary {
 
 impl fmt::Display for FeatureSummary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "{}feature,intervals,identical_intervals,identity,identity_qv,bases_per_interval,matches_per_interval,mismatches_per_interval,non_hp_ins_per_interval,non_hp_del_per_interval,hp_ins_per_interval,hp_del_per_interval", if self.name_column.is_some() { "name," } else { "" })?;
+        writeln!(f, "{}feature,intervals,identical_intervals,identity,identity_qv,mean_qual,bases_per_interval,matches_per_interval,mismatches_per_interval,non_hp_ins_per_interval,non_hp_del_per_interval,hp_ins_per_interval,hp_del_per_interval", if self.name_column.is_some() { "name," } else { "" })?;
         let mut v = self.feature_stats.iter().collect::<Vec<_>>();
         v.sort_by_key(|x| x.0);
         for (feature, stats) in v.into_iter() {
@@ -196,13 +196,14 @@ impl fmt::Display for FeatureSummary {
             let id = stats.identity();
             writeln!(
                 f,
-                "{}{},{},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6}",
+                "{}{},{},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6}",
                 self.name_column.as_ref().map(|n| n.as_str()).unwrap_or(""),
                 feature.trim(),
                 stats.overlaps,
                 per_interval(stats.identical_overlaps),
                 id,
                 concordance_qv(id, id != 1.0),
+                stats.mean_qual(),
                 per_interval(stats.num_bases()),
                 per_interval(stats.matches),
                 per_interval(stats.mismatches),
@@ -346,6 +347,73 @@ impl fmt::Display for BinSummary {
                     per_kbp(stats.non_hp_del),
                     per_kbp(stats.hp_ins),
                     per_kbp(stats.hp_del),
+                )?;
+            }
+        }
+        Ok(())
+    }
+}
+
+pub struct QualScoreSummary {
+    name_column: Option<String>,
+    feature_qual: FxHashMap<String, QualScoreStats>,
+}
+
+impl QualScoreSummary {
+    pub fn new(mut name_column: Option<String>) -> Self {
+        if let Some(ref mut name) = name_column {
+            name.push(',');
+        }
+        let mut feature_qual = FxHashMap::default();
+        feature_qual.insert("all_alignments".to_owned(), QualScoreStats::default());
+        Self {
+            name_column,
+            feature_qual,
+        }
+    }
+
+    pub fn update(&mut self, aln_stats: &AlnStats) {
+        if aln_stats.supplementary {
+            return;
+        }
+
+        self.feature_qual
+            .get_mut("all_alignments")
+            .unwrap()
+            .assign_add(&aln_stats.q_score_stats);
+
+        for (&k, v) in &aln_stats.feature_stats {
+            self.feature_qual
+                .entry(k.to_owned())
+                .or_insert_with(|| QualScoreStats::default())
+                .assign_add(&v.q_score_stats);
+        }
+    }
+}
+
+impl fmt::Display for QualScoreSummary {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(
+            f,
+            "{}feature,qual_score,identity_qv",
+            if self.name_column.is_some() {
+                "name,"
+            } else {
+                ""
+            }
+        )?;
+        let mut v = self.feature_qual.iter().collect::<Vec<_>>();
+        v.sort_by_key(|x| x.0);
+        for (feature, stats) in v.into_iter() {
+            let stats = stats.empirical_qv();
+            for (i, qv) in stats.into_iter().enumerate() {
+                writeln!(
+                    f,
+                    "{}{},{},{:.2}",
+                    self.name_column.as_ref().map(|n| n.as_str()).unwrap_or(""),
+                    feature.trim(),
+                    i,
+                    qv
                 )?;
             }
         }
