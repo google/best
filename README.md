@@ -1,7 +1,7 @@
 # best
 Bam Error Stats Tool (best): analysis of error types in aligned reads.
 
-This is mainly used to assess the quality of reads after aligning them to a
+`best` is used to assess the quality of reads after aligning them to a
 reference assembly.
 
 ## Features
