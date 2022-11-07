@@ -127,6 +127,7 @@ fn run(
                 return;
             }
 
+            let strand_rev = flags.is_reverse_complemented();
             let aln_ref = references[record.reference_sequence_id().unwrap().unwrap()]
                 .name()
                 .as_str();
@@ -146,21 +147,21 @@ fn run(
                         reference_seqs[aln_ref].sequence(),
                         aln_start,
                         aln_end,
+                        strand_rev,
                     )),
-                    IntervalsType::Window(win_len) => {
-                        intervals_vec.extend(get_windows(aln_start, aln_end, *win_len, false))
-                    }
-                    IntervalsType::WindowPos(win_len) => {
-                        intervals_vec.extend(get_windows(aln_start, aln_end, *win_len, true))
-                    }
+                    IntervalsType::Window(win_len) => intervals_vec
+                        .extend(get_windows(aln_start, aln_end, *win_len, false, strand_rev)),
+                    IntervalsType::WindowPos(win_len) => intervals_vec
+                        .extend(get_windows(aln_start, aln_end, *win_len, true, strand_rev)),
                     IntervalsType::Border(win_len) => {
-                        intervals_vec.extend(get_borders(aln_start, aln_end, *win_len))
+                        intervals_vec.extend(get_borders(aln_start, aln_end, *win_len, strand_rev))
                     }
                     IntervalsType::Match(seq) => intervals_vec.extend(get_matches(
                         reference_seqs[aln_ref].sequence(),
                         aln_start,
                         aln_end,
                         seq,
+                        strand_rev,
                     )),
                     IntervalsType::Bed(intervals) => {
                         overlap_intervals.extend(intervals.find(aln_ref, aln_start, aln_end))
