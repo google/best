@@ -131,6 +131,12 @@ fn run(
             let aln_ref = references[record.reference_sequence_id().unwrap().unwrap()]
                 .name()
                 .as_str();
+            if !reference_seqs.contains_key(aln_ref) {
+                panic!(
+                    "{} is not found in the input reference sequence names!",
+                    aln_ref
+                );
+            }
             // convert to one-indexed [aln_start, aln_end)
             let aln_start = usize::from(record.alignment_start().unwrap().unwrap());
             let aln_end = aln_start
