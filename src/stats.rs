@@ -36,6 +36,8 @@ use crate::bed::*;
 #[derive(Debug)]
 pub struct AlnStats<'a> {
     pub read_name: String,
+    pub chr: String,
+    pub ref_pos: usize,
     pub q_len: usize,
     pub effective_cov: Option<f64>,
     pub subread_passes: Option<usize>,
@@ -282,6 +284,10 @@ impl<'a> AlnStats<'a> {
         intervals: &[&'a FeatureInterval],
     ) -> Self {
         // note: avoid copying data (especially sequence/quality scores) since they are large
+        let chr = references[r.reference_sequence_id().unwrap().unwrap()]
+            .name()
+            .to_string();
+        let mut ref_pos = usize::from(r.alignment_start().unwrap().unwrap());
         let sequence = sam::record::Sequence::try_from(r.sequence()).unwrap();
         let q_scores = sam::record::QualityScores::try_from(r.quality_scores()).unwrap();
         let flags = r.flags().unwrap();
@@ -305,6 +311,8 @@ impl<'a> AlnStats<'a> {
                 .expect("Error parsing read name! Perhaps it contains an '@'?")
                 .unwrap()
                 .to_string(),
+            chr: chr,
+            ref_pos: ref_pos,
             q_len: sequence.len(),
             effective_cov: ec,
             subread_passes: np,
@@ -341,13 +349,9 @@ impl<'a> AlnStats<'a> {
                 .overlaps += 1;
         }
 
-        let mut ref_pos = usize::from(r.alignment_start().unwrap().unwrap());
         let mut query_pos = 1;
         let mut interval_start_idx = 0;
-        let curr_ref_name = references[r.reference_sequence_id().unwrap().unwrap()]
-            .name()
-            .to_string();
-        let curr_ref_seq = reference_seqs[&curr_ref_name].sequence();
+        let curr_ref_seq = reference_seqs[&res.chr].sequence();
         let mut curr_features = Vec::new();
         let mut curr_interval_idxs = Vec::new();
 
@@ -540,7 +544,7 @@ impl<'a> AlnStats<'a> {
     }
 
     pub fn header() -> &'static str {
-        "read,read_length,effective_coverage,subread_passes,predicted_concordance,alignment_type,strand,alignment_mapq,mean_quality,aligned_read_length,reference_coverage,gc_content,concordance,gap_compressed_concordance,concordance_qv,mismatches,non_hp_ins,non_hp_del,hp_ins,hp_del"
+        "read,chr,pos,read_length,effective_coverage,subread_passes,predicted_concordance,alignment_type,strand,alignment_mapq,mean_quality,aligned_read_length,reference_coverage,gc_content,concordance,gap_compressed_concordance,concordance_qv,mismatches,non_hp_ins,non_hp_del,hp_ins,hp_del"
     }
 
     pub fn to_csv(&self) -> String {
@@ -563,8 +567,10 @@ impl<'a> AlnStats<'a> {
             .map(|x| format!("{:.6}", x))
             .unwrap_or_else(|| String::new());
         format!(
-            "{},{},{:.2},{},{:.6},{},{},{},{},{},{:.6},{:.6},{:.6},{:.6},{:.2},{},{},{},{},{}",
+            "{},{},{},{},{:.2},{},{:.6},{},{},{},{},{},{:.6},{:.6},{:.6},{:.6},{:.2},{},{},{},{},{}",
             self.read_name,
+            self.chr,
+            self.ref_pos,
             self.q_len,
             ec,
             np,
