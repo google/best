@@ -283,7 +283,6 @@ impl<'a> AlnStats<'a> {
         r: &bam::lazy::Record,
         intervals: &[&'a FeatureInterval],
     ) -> Self {
-        // note: avoid copying data (especially sequence/quality scores) since they are large
         let chr = references[r.reference_sequence_id().unwrap().unwrap()]
             .name()
             .to_string();
@@ -311,8 +310,8 @@ impl<'a> AlnStats<'a> {
                 .expect("Error parsing read name! Perhaps it contains an '@'?")
                 .unwrap()
                 .to_string(),
-            chr: chr,
-            ref_pos: ref_pos,
+            chr,
+            ref_pos,
             q_len: sequence.len(),
             effective_cov: ec,
             subread_passes: np,
