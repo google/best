@@ -111,7 +111,7 @@ impl QualScoreStats {
 impl Default for QualScoreStats {
     fn default() -> Self {
         Self {
-            stats: vec![(0usize, 0usize); 100],
+            stats: vec![(0usize, 0usize); 256],
         }
     }
 }
