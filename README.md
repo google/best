@@ -39,3 +39,11 @@ Remember to pass the `-t 1` option to ensure that only one thread is used for
 testing. Best generally tries to ensure the order of outputs is deterministic
 with multiple threads, but the order of per-alignment stats is arbitrary unless
 only one thread is used.
+
+### Disclaimer
+
+This is not an official Google product.
+
+The code is not intended for use in any clinical settings.  It is not intended to be a medical device and is not intended for clinical use of any kind, including but not limited to diagnosis or prognosis.
+
+No representations or warranties are made with regards to the accuracy of results generated.  User or licensee is responsible for verifying and validating accuracy when using this tool.

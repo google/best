@@ -1,6 +1,6 @@
 [package]
 name = "best"
-authors = ["Daniel Liu"]
+authors = ["Daniel Liu", "Daniel E. Cook"]
 version = "0.1.0"
 edition = "2021"
 description = "Bam Error Stats Tool (best): analysis of error types in aligned reads."
