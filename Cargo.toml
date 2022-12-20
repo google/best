@@ -2,7 +2,7 @@
 name = "best"
 authors = ["Daniel Liu", "Daniel E. Cook"]
 version = "0.1.0"
-edition = "2021"
+edition = "2022"
 description = "Bam Error Stats Tool (best): analysis of error types in aligned reads."
 license = "MIT"
 
