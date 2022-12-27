@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Liu"
+  given-names: "Daniel"
+  orcid: "https://orcid.org/0000-0002-2385-2957"
+- family-names: "Belyaeva"
+  given-names: "Anastasiya"
+- family-names: "Shafin"
+  given-names: "Kishwar"
+  orcid: "https://orcid.org/0000-0001-5252-3434"
+- family-names: "Chang"
+  given-names: "Pi-Chuan"
+  orcid: "https://orcid.org/0000-0003-3021-6446"
+- family-names: "Carroll"
+  given-names: "Andrew"
+  orcid: "https://orcid.org/0000-0002-4824-6689"
+- family-names: "Cook"
+  given-names: "Daniel"
+  orcid: "https://orcid.org/0000-0003-3347-562X"
+title: "Best"
+version: 0.1.0
+doi: 10.1101/2022.12.22.521488
+date-released: 2020-12-09
+url: "https://github.com/google/best"
