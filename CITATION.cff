@@ -18,7 +18,7 @@ authors:
 - family-names: "Cook"
   given-names: "Daniel"
   orcid: "https://orcid.org/0000-0003-3347-562X"
-title: "Best"
+title: "Best: A Tool for Characterizing Sequencing Errors"
 version: 0.1.0
 doi: 10.1101/2022.12.22.521488
 date-released: 2020-12-09
