@@ -289,6 +289,9 @@ impl<'a> AlnStats<'a> {
         let mut ref_pos = usize::from(r.alignment_start().unwrap().unwrap());
         let sequence = sam::record::Sequence::try_from(r.sequence()).unwrap();
         let q_scores = sam::record::QualityScores::try_from(r.quality_scores()).unwrap();
+        if sequence.is_empty() || q_scores.is_empty() {
+            panic!("Read sequence or quality scores do not exist!");
+        }
         let flags = r.flags().unwrap();
         let data = sam::record::Data::try_from(r.data()).unwrap();
         let ec_tag = Tag::try_from(*b"ec").unwrap();

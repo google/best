@@ -2,6 +2,10 @@
 
 This guide will give a general overview of how to use `best`.
 
+## Alignment Settings
+The alignment `bam` file must contain the read sequences and quality scores.
+The alignment CIGAR string can either use `M` or `=`/`X` for matches/mismatches.
+
 ## Example Analysis
 Let's say we have aligned reads in `aln.bam` and the reference assembly
 `ref.fasta.gz`. We want to collect statistics on the types of
@@ -53,7 +57,7 @@ all bed intervals with the same feature.
 ## Help Message:
 ```
 best 0.1.0
-Daniel Liu
+Daniel Liu, Daniel E. Cook
 Bam Error Stats Tool (best): analysis of error types in aligned reads.
 
 USAGE:
