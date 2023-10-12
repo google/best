@@ -89,22 +89,31 @@ OPTIONS:
             Use intervals from a BED file.
 
             The BED file should have the columns chrom, start, stop, and feature. The feature column
-            is optional. It allows stats to be gathered separately for different types of intervals.
+            is optional.
+
+            This allows stats to be gathered separately for different types of intervals. Note that
+            all intervals are on the reference, not the reads.
 
         --intervals-border <INTERVALS_BORDER>...
-            Use fixed-width window border regions as intervals
+            Use fixed-width nonoverlapping window border regions as intervals.
+
+            This is used to specify the window widths.
 
         --intervals-hp
-            Use homopolymer regions as intervals
+            Use homopolymer regions in the reference as intervals
 
         --intervals-match <INTERVALS_MATCH>...
-            Use regions that match any of the specified subsequences as intervals
+            Use regions in the reference that match any of the specified subsequences as intervals
 
         --intervals-window <INTERVALS_WINDOW>...
-            Use fixed-width windows as intervals
+            Use fixed-width nonoverlapping windows as intervals.
+
+            This is used to specify the window widths.
 
         --intervals-window-pos <INTERVALS_WINDOW_POS>...
-            Use fixed-width windows with positions as intervals
+            Use fixed-width nonoverlapping windows with positions as intervals.
+
+            This is used to specify the window widths.
 
     -n, --name-column <NAME_COLUMN>
             Add column with a specific name in CSV outputs
