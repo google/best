@@ -337,27 +337,35 @@ struct Args {
     ///
     /// The BED file should have the columns chrom, start, stop, and feature.
     /// The feature column is optional.
-    /// It allows stats to be gathered separately for different types of intervals.
+    ///
+    /// This allows stats to be gathered separately for different types of intervals.
+    /// Note that all intervals are on the reference, not the reads.
     #[clap(long, min_values = 1)]
     intervals_bed: Option<Vec<String>>,
 
-    /// Use homopolymer regions as intervals.
+    /// Use homopolymer regions in the reference as intervals.
     #[clap(long)]
     intervals_hp: bool,
 
-    /// Use fixed-width windows as intervals.
+    /// Use fixed-width nonoverlapping windows as intervals.
+    ///
+    /// This is used to specify the window widths.
     #[clap(long, min_values = 1)]
     intervals_window: Option<Vec<usize>>,
 
-    /// Use fixed-width windows with positions as intervals.
+    /// Use fixed-width nonoverlapping windows with positions as intervals.
+    ///
+    /// This is used to specify the window widths.
     #[clap(long, min_values = 1)]
     intervals_window_pos: Option<Vec<usize>>,
 
-    /// Use fixed-width window border regions as intervals.
+    /// Use fixed-width nonoverlapping window border regions as intervals.
+    ///
+    /// This is used to specify the window widths.
     #[clap(long, min_values = 1)]
     intervals_border: Option<Vec<usize>>,
 
-    /// Use regions that match any of the specified subsequences as intervals.
+    /// Use regions in the reference that match any of the specified subsequences as intervals.
     #[clap(long, min_values = 1)]
     intervals_match: Option<Vec<String>>,
 

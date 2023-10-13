@@ -18,11 +18,20 @@ reference assembly.
 ## Usage
 The [`best` Usage Guide](Usage.md) gives an overview of how to use `best`.
 
+## Installing
+1. Install [Rust](https://www.rust-lang.org/tools/install).
+2. Clone this repository and navigate into the directory of this repository.
+3. Run `cargo install --path .`.
+4. Run `best input.bam reference.fasta prefix/path`.
+
+This will generate stats files with the `prefix/path` prefix.
+
 ## Development
 ### Running
 1. Install [Rust](https://www.rust-lang.org/tools/install).
-2. Run `cargo build --release`.
-3. Run `cargo run --release -- input.bam reference.fasta prefix/path` or
+2. Clone this repository and navigate into the directory of this repository.
+3. Run `cargo build --release`.
+4. Run `cargo run --release -- input.bam reference.fasta prefix/path` or
 `target/release/best input.bam reference.fasta prefix/path`.
 
 This will generate stats files with the `prefix/path` prefix.

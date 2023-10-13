@@ -321,7 +321,11 @@ impl<'a> AlnStats<'a> {
             pred_concordance: rq,
             supplementary: flags.is_supplementary(),
             strand_rev: flags.is_reverse_complemented(),
-            mapq: u8::from(r.mapping_quality().unwrap().unwrap()),
+            mapq: r
+                .mapping_quality()
+                .unwrap()
+                .map(|q| u8::from(q))
+                .unwrap_or(255u8),
             mean_qual: mean_qual(q_scores.as_ref()),
             // fill in the rest afterwards
             read_len: 0,
