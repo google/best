@@ -25,7 +25,7 @@ use noodles::{bam, fasta, sam};
 
 use fxhash::FxHashMap;
 
-use flate2::read::GzDecoder;
+use flate2::read::MultiGzDecoder;
 use flate2::write::GzEncoder;
 
 use std::fs::File;
@@ -65,7 +65,7 @@ fn run(
     let mut ref_reader = {
         let f = File::open(&reference_path).unwrap();
         let r: Box<dyn Read> = if reference_path.ends_with(".gz") {
-            Box::new(GzDecoder::new(f))
+            Box::new(MultiGzDecoder::new(f))
         } else {
             Box::new(f)
         };
