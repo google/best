@@ -43,43 +43,31 @@ pub fn find_homopolymers(
     let mut hp_len = 0;
     let mut prev = b'?';
 
-    for i in start..end {
+    for i in start..=end {
         let curr = seq
             .get(Position::new(i).unwrap())
             .unwrap()
             .to_ascii_uppercase();
 
-        if curr == prev {
+        if curr == prev && i != end {
             hp_len += 1;
-        } else {
-            if hp_len > 1 {
-                let c = if strand_rev {
-                    COMPLEMENT[prev as usize]
-                } else {
-                    prev
-                };
-                res.push(FeatureInterval {
-                    start: i - hp_len,
-                    stop: i,
-                    val: format!("{: >5}{}", hp_len, c as char),
-                });
-            }
-            hp_len = 1;
-            prev = curr;
+            continue;
         }
-    }
 
-    if hp_len > 1 {
-        let c = if strand_rev {
-            COMPLEMENT[prev as usize]
-        } else {
-            prev
-        };
-        res.push(FeatureInterval {
-            start: end - hp_len,
-            stop: end,
-            val: format!("{: >5}{}", hp_len, c as char),
-        });
+        if hp_len > 1 {
+            let c = if strand_rev {
+                COMPLEMENT[prev as usize]
+            } else {
+                prev
+            };
+            res.push(FeatureInterval {
+                start: i - hp_len,
+                stop: i,
+                val: format!("{: >5}{}", hp_len, c as char),
+            });
+        }
+        hp_len = 1;
+        prev = curr;
     }
 
     res
